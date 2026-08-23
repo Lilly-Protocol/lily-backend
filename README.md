@@ -52,6 +52,7 @@ The server runs on `http://localhost:4000` by default.
 - `GET /api/v1/health`
 - `GET /api/v1/agents`
 - `POST /api/v1/agents`
+- `POST /api/v1/payments/quote`
 
 ## Example API
 
