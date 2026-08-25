@@ -36,3 +36,6 @@ jobs:
 
       - name: Test
         run: npm run test
+
+      - name: Dependency vulnerability scan
+        run: npm audit --omit=dev --audit-level=high
