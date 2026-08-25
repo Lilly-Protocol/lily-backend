@@ -80,4 +80,103 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  // GET /:id tests (issue #113)
+
+  it("returns a single agent by id", async () => {
+    const response = await request(app).get("/api/v1/agents/agentlily_demo_001");
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent).toMatchObject({
+      id: "agentlily_demo_001",
+      name: "Treasury Settlement Agent",
+    });
+  });
+
+  it("returns 404 for unknown agent id on GET", async () => {
+    const response = await request(app).get("/api/v1/agents/nonexistent_id");
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toContain("not found");
+  });
+
+  // PATCH /:id tests (issue #114)
+
+  it("patches agent status to paused", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.status).toBe("paused");
+  });
+
+  it("patches agent status back to active", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.agent.status).toBe("active");
+  });
+
+  it("returns 400 for invalid status value on PATCH", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "invalid_status" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  it("returns 404 for unknown agent id on PATCH", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/nonexistent_id")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+  });
+
+  // DELETE /:id tests (issue #115)
+
+  it("deletes an existing agent", async () => {
+    const response = await request(app).delete(
+      "/api/v1/agents/agentlily_demo_001",
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toContain("deleted");
+  });
+
+  it("deleted agent no longer appears in the list", async () => {
+    await request(app).delete("/api/v1/agents/agentlily_demo_001");
+
+    const response = await request(app).get("/api/v1/agents");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.total).toBe(0);
+    expect(
+      response.body.data.agents.find(
+        (a: { id: string }) => a.id === "agentlily_demo_001",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("returns 404 for unknown agent id on DELETE", async () => {
+    const response = await request(app).delete(
+      "/api/v1/agents/nonexistent_id",
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+  });
 });

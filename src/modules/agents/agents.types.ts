@@ -24,3 +24,15 @@ export interface ListAgentsResponse {
 export interface CreateAgentResponse {
   agent: Agent;
 }
+
+export interface GetAgentResponse {
+  agent: Agent;
+}
+
+export interface PatchAgentInput {
+  status?: AgentStatus;
+}
+
+export interface DeleteAgentResponse {
+  deleted: boolean;
+}

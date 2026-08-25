@@ -1,5 +1,6 @@
 import type {
   Agent,
+  AgentStatus,
   CreateAgentInput,
   CreateAgentResponse,
   ListAgentsResponse,
@@ -47,6 +48,27 @@ export const agentsService = {
     agentsStore.push(agent);
 
     return { agent };
+  },
+
+  getAgentById(id: string): Agent | null {
+    return agentsStore.find((a) => a.id === id) ?? null;
+  },
+
+  updateAgent(
+    id: string,
+    input: { status?: AgentStatus },
+  ): Agent | null {
+    const agent = agentsStore.find((a) => a.id === id);
+    if (!agent) return null;
+    if (input.status) agent.status = input.status;
+    return agent;
+  },
+
+  deleteAgent(id: string): boolean {
+    const idx = agentsStore.findIndex((a) => a.id === id);
+    if (idx === -1) return false;
+    agentsStore.splice(idx, 1);
+    return true;
   },
 
   reset(): void {
