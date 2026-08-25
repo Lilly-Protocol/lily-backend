@@ -1,3 +1,5 @@
+import type { Capability } from "./agents.schema";
+
 export type AgentStatus = "active" | "paused";
 
 export interface Agent {
@@ -6,14 +8,14 @@ export interface Agent {
   description: string;
   walletAddress: string;
   status: AgentStatus;
-  capabilities: string[];
+  capabilities: Capability[];
   createdAt: string;
 }
 
 export interface CreateAgentInput {
   name: string;
   description: string;
-  capabilities: string[];
+  capabilities: Capability[];
 }
 
 export interface ListAgentsResponse {

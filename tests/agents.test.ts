@@ -80,4 +80,20 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  it("rejects capabilities outside the allowlist", async () => {
+    const response = await request(app).post("/api/v1/agents").send({
+      name: "Unsafe Bot",
+      description: "Agent attempting to request unsupported capabilities.",
+      capabilities: ["drop-tables", "exfil"],
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBe("Request validation failed");
+    expect(response.body.details.fieldErrors.capabilities).toEqual([
+      expect.any(String),
+      expect.any(String),
+    ]);
+  });
 });
