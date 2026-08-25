@@ -80,4 +80,14 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  it("preserves the parser's 413 status for payloads exceeding bodySizeLimit", async () => {
+    const response = await request(app)
+      .post("/api/v1/agents")
+      .send({ payload: "x".repeat(1024 * 1024) });
+
+    expect(response.status).toBe(413);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBe("request entity too large");
+  });
 });

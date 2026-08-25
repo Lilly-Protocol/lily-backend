@@ -4,6 +4,24 @@ import { env } from "../../config/env";
 import { logger } from "../../config/logger";
 import { AppError } from "./app-error";
 
+type HttpError = Error & {
+  status?: number;
+  statusCode?: number;
+};
+
+const getStatusCode = (error: Error): number => {
+  if (error instanceof AppError) {
+    return error.statusCode;
+  }
+
+  const httpError = error as HttpError;
+  const statusCode = httpError.statusCode ?? httpError.status;
+
+  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 600
+    ? statusCode
+    : 500;
+};
+
 export const errorHandler = (
   error: Error,
   request: Request,
@@ -12,7 +30,7 @@ export const errorHandler = (
 ): void => {
   void _next;
 
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
+  const statusCode = getStatusCode(error);
   const details = error instanceof AppError ? error.details : undefined;
 
   logger.error(
