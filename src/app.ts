@@ -10,6 +10,7 @@ import { corsOptions } from "./config/cors";
 import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
+import { cacheControlNoStore } from "./common/http/cache-control.middleware";
 import { apiRouter } from "./routes";
 
 export const createApp = () => {
@@ -42,6 +43,7 @@ export const createApp = () => {
       },
     }),
   );
+  app.use(cacheControlNoStore);
   app.use(apiRateLimiter);
 
   app.get("/", (_request, response) => {
