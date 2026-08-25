@@ -4,6 +4,18 @@ import { env } from "../../config/env";
 import { logger } from "../../config/logger";
 import { AppError } from "./app-error";
 
+interface BodyParserError extends SyntaxError {
+  status: number;
+  type: string;
+}
+
+const isMalformedJsonError = (error: Error): error is BodyParserError =>
+  error instanceof SyntaxError &&
+  "status" in error &&
+  error.status === 400 &&
+  "type" in error &&
+  error.type === "entity.parse.failed";
+
 export const errorHandler = (
   error: Error,
   request: Request,
@@ -12,7 +24,8 @@ export const errorHandler = (
 ): void => {
   void _next;
 
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
+  const malformedJson = isMalformedJsonError(error);
+  const statusCode = error instanceof AppError ? error.statusCode : malformedJson ? 400 : 500;
   const details = error instanceof AppError ? error.details : undefined;
 
   logger.error(
@@ -30,7 +43,9 @@ export const errorHandler = (
     message:
       statusCode === 500 && env.NODE_ENV === "production"
         ? "Internal server error"
-        : error.message,
+        : malformedJson
+          ? "Malformed JSON body"
+          : error.message,
     ...(details ? { details } : {}),
   });
 };

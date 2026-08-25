@@ -2,6 +2,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createApp } from "../src/app";
+import type { ApiErrorResponse } from "../src/common/types/api-response";
 import { agentsService } from "../src/modules/agents/agents.service";
 
 describe("agent endpoints", () => {
@@ -79,5 +80,18 @@ describe("agent endpoints", () => {
       description: [expect.any(String)],
       capabilities: [expect.any(String)],
     });
+  });
+
+  it("rejects malformed JSON with the standard error response", async () => {
+    const response = await request(app)
+      .post("/api/v1/agents")
+      .set("Content-Type", "application/json")
+      .send('{"name": "x"');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      message: "Malformed JSON body",
+    } satisfies ApiErrorResponse);
   });
 });
