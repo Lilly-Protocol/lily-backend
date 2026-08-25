@@ -118,6 +118,16 @@ npm run build
 npm run test
 ```
 
+## API Versioning
+
+All API routes are mounted under a versioned prefix (`/api/v1`). The versioning strategy is:
+
+- **Prefix-based versioning**: Routes are grouped under `/api/v1/` via a dedicated `v1Router` in `src/routes/v1.router.ts`.
+- **Backward compatibility**: New minor changes within v1 must not break existing consumers.
+- **Future versions**: When breaking changes are needed, a new `v2Router` will be introduced at `/api/v2/`. The old v1 routes remain available until deprecation.
+- **Route discovery**: The root endpoint (`GET /`) returns a `docs` field pointing to the current versioned health check.
+- **Environment control**: The base API prefix is configurable via `API_PREFIX` (default: `/api`). The version segment (`/v1`) is managed by the router layer.
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines and local setup details.

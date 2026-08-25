@@ -9,7 +9,7 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   APP_NAME: z.string().min(1).default("Lily Backend"),
-  API_PREFIX: z.string().min(1).default("/api/v1"),
+  API_PREFIX: z.string().min(1).default("/api"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),

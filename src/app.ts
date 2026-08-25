@@ -48,7 +48,7 @@ export const createApp = () => {
     response.status(200).json({
       success: true,
       message: `${env.APP_NAME} is running`,
-      docs: `${env.API_PREFIX}/health`,
+      docs: `${env.API_PREFIX}/v1/health`,
     });
   });
 

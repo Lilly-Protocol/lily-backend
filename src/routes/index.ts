@@ -1,9 +1,7 @@
 import { Router } from "express";
 
-import { agentsRouter } from "../modules/agents/agents.routes";
-import { healthRouter } from "../modules/health/health.routes";
+import { v1Router } from "./v1.router";
 
 export const apiRouter = Router();
 
-apiRouter.use("/health", healthRouter);
-apiRouter.use("/agents", agentsRouter);
+apiRouter.use("/v1", v1Router);
