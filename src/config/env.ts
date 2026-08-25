@@ -21,6 +21,8 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  AUTH_API_KEY: z.string().optional(),
+  AUTH_API_KEY_HEADER: z.string().min(1).default("x-api-key"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -41,4 +43,6 @@ export const securityConfig = {
   rateLimitWindowMs: env.RATE_LIMIT_WINDOW_MS,
   rateLimitMaxRequests: env.RATE_LIMIT_MAX_REQUESTS,
   trustProxy: env.TRUST_PROXY,
+  authApiKey: env.AUTH_API_KEY,
+  authApiKeyHeader: env.AUTH_API_KEY_HEADER,
 };
