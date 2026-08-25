@@ -28,7 +28,7 @@ const createWalletAddress = (seed: string): string => {
 export const agentsService = {
   listAgents(): ListAgentsResponse {
     return {
-      agents: agentsStore,
+      agents: agentsStore.map((a) => ({ ...a })),
       total: agentsStore.length,
     };
   },

@@ -80,4 +80,30 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  it("returns defensive copies so response mutation does not corrupt the store", async () => {
+    const firstResponse = await request(app).get("/api/v1/agents");
+    expect(firstResponse.status).toBe(200);
+
+    const originalId = firstResponse.body.data.agents[0].id as string;
+    const originalName = firstResponse.body.data.agents[0].name as string;
+
+    (firstResponse.body.data.agents as Array<Record<string, unknown>>)[0].id = "MUTATED_ID";
+    (firstResponse.body.data.agents as Array<Record<string, unknown>>)[0].name = "MUTATED_NAME";
+
+    const secondResponse = await request(app).get("/api/v1/agents");
+    expect(secondResponse.status).toBe(200);
+    expect(secondResponse.body.data.agents[0].id).toBe(originalId);
+    expect(secondResponse.body.data.agents[0].name).toBe(originalName);
+    expect(secondResponse.body.data.agents[0].id).not.toBe("MUTATED_ID");
+    expect(secondResponse.body.data.agents[0].name).not.toBe("MUTATED_NAME");
+  });
+
+  it("returns a new array reference each call (not the same object)", async () => {
+    const res1 = await request(app).get("/api/v1/agents");
+    const res2 = await request(app).get("/api/v1/agents");
+
+    expect(res1.body.data.agents).not.toBe(res2.body.data.agents);
+    expect(res1.body.data.agents[0]).not.toBe(res2.body.data.agents[0]);
+  });
 });
