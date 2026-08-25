@@ -21,4 +21,18 @@ describe("health endpoints", () => {
     expect(response.body.success).toBe(false);
     expect(response.body.message).toContain("Route not found");
   });
+
+  it("exposes the configured Helmet security headers", async () => {
+    const response = await request(app).get("/api/v1/health");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers["x-frame-options"]).toBe("SAMEORIGIN");
+    expect(response.headers["content-security-policy"]).toEqual(
+      expect.stringContaining("default-src 'self'"),
+    );
+    expect(response.headers["referrer-policy"]).toBe("no-referrer");
+    expect(response.headers["cross-origin-resource-policy"]).toBe("cross-origin");
+    expect(response.headers["x-powered-by"]).toBeUndefined();
+  });
 });
