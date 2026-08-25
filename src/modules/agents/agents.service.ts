@@ -28,9 +28,36 @@ const createWalletAddress = (seed: string): string => {
 export const agentsService = {
   listAgents(): ListAgentsResponse {
     return {
-      agents: agentsStore,
+      agents: agentsStore.map((a) => ({ ...a })),
       total: agentsStore.length,
     };
+  },
+
+  getAgent(id: string): Agent | undefined {
+    return agentsStore.find((a) => a.id === id);
+  },
+
+  updateAgent(
+    id: string,
+    updates: { status?: "active" | "paused" | undefined },
+  ): Agent | undefined {
+    const agent = agentsStore.find((a) => a.id === id);
+    if (!agent) {
+      return undefined;
+    }
+    if (updates.status !== undefined) {
+      agent.status = updates.status;
+    }
+    return { ...agent };
+  },
+
+  deleteAgent(id: string): boolean {
+    const index = agentsStore.findIndex((a) => a.id === id);
+    if (index === -1) {
+      return false;
+    }
+    agentsStore.splice(index, 1);
+    return true;
   },
 
   createAgent(input: CreateAgentInput): CreateAgentResponse {
