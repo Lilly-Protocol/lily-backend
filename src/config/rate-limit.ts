@@ -1,6 +1,19 @@
+import type { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 
 import { securityConfig } from "./env";
+
+const rateLimitHandler = (
+  _request: Request,
+  response: Response,
+): void => {
+  const retryAfter = response.getHeader("Retry-After");
+  response.status(429).json({
+    success: false,
+    message: "Too many requests, please try again later.",
+    details: retryAfter !== undefined ? { retryAfterSeconds: Number(retryAfter) } : undefined,
+  });
+};
 
 export const apiRateLimiter = rateLimit({
   windowMs: securityConfig.rateLimitWindowMs,
@@ -8,8 +21,14 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test",
-  message: {
-    success: false,
-    message: "Too many requests, please try again later.",
-  },
+  handler: rateLimitHandler,
+});
+
+export const writeRateLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  handler: rateLimitHandler,
 });
