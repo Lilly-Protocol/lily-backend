@@ -11,6 +11,7 @@ import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { apiRouter } from "./routes";
+import { serializeRequest } from "./common/http/request-logger";
 
 export const createApp = () => {
   const app = express();
@@ -29,6 +30,9 @@ export const createApp = () => {
   app.use(
     pinoHttp({
       logger,
+      serializers: {
+        req: serializeRequest,
+      },
       customLogLevel(_request, response, error) {
         if (error || response.statusCode >= 500) {
           return "error";
