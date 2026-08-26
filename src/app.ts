@@ -10,6 +10,7 @@ import { corsOptions } from "./config/cors";
 import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
+import { shouldIgnoreRequestLog } from "./config/request-logging";
 import { apiRouter } from "./routes";
 
 export const createApp = () => {
@@ -29,6 +30,9 @@ export const createApp = () => {
   app.use(
     pinoHttp({
       logger,
+      autoLogging: {
+        ignore: shouldIgnoreRequestLog,
+      },
       customLogLevel(_request, response, error) {
         if (error || response.statusCode >= 500) {
           return "error";
