@@ -15,15 +15,18 @@ export const errorHandler = (
   const statusCode = error instanceof AppError ? error.statusCode : 500;
   const details = error instanceof AppError ? error.details : undefined;
 
-  logger.error(
-    {
-      err: error,
-      method: request.method,
-      path: request.originalUrl,
-      statusCode,
-    },
-    "Request failed",
-  );
+  const logContext = {
+    err: error,
+    method: request.method,
+    path: request.originalUrl,
+    statusCode,
+  };
+
+  if (statusCode >= 500) {
+    logger.error(logContext, "Request failed");
+  } else {
+    logger.warn(logContext, "Request failed");
+  }
 
   response.status(statusCode).json({
     success: false,
