@@ -31,5 +31,18 @@ const shutdown = (signal: NodeJS.Signals) => {
   });
 };
 
+const normalizeError = (reason: unknown): Error =>
+  reason instanceof Error ? reason : new Error(String(reason));
+
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: normalizeError(reason) }, "Unhandled promise rejection");
+  process.exit(1);
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error({ err: error }, "Uncaught exception");
+  process.exit(1);
+});
