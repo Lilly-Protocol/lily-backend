@@ -18,6 +18,16 @@ export const stellarAddressSchema = z
     }
   );
 
+/**
+ * Validates a Stellar asset code.
+ * Native XLM and issued assets (1-12 alphanumeric characters).
+ */
+export const stellarAssetCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9]{1,12}$/, "Asset code must be 1-12 alphanumeric characters")
+  .toUpperCase();
+
 export const createPaymentQuoteSchema = z.object({
   fromWalletId: z.string().trim().min(1).max(120),
   toAddress: stellarAddressSchema,
@@ -25,7 +35,7 @@ export const createPaymentQuoteSchema = z.object({
     .string()
     .trim()
     .regex(/^\d+(\.\d{1,7})?$/, "Amount must be a positive decimal string"),
-  assetCode: z.string().trim().min(1).max(12).toUpperCase(),
+  assetCode: stellarAssetCodeSchema,
 });
 
 export type CreatePaymentQuoteSchema = z.infer<
