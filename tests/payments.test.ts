@@ -9,7 +9,7 @@ describe("payment endpoints", () => {
   it("creates a stubbed payment quote for valid input", async () => {
     const response = await request(app).post("/api/v1/payments/quote").send({
       fromWalletId: "wallet_123",
-      toAddress: "GBLILYDESTINATIONWALLET000000000000000000000000001",
+      toAddress: "GAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIHA",
       amount: "25.5000000",
       assetCode: "usdc",
     });
@@ -19,7 +19,7 @@ describe("payment endpoints", () => {
     expect(response.body.data.quote).toMatchObject({
       quoteId: "quote_stub_001",
       fromWalletId: "wallet_123",
-      toAddress: "GBLILYDESTINATIONWALLET000000000000000000000000001",
+      toAddress: "GAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIHA",
       amount: "25.5000000",
       assetCode: "USDC",
       feeAmount: "0.0000000",
