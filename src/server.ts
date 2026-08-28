@@ -33,3 +33,12 @@ const shutdown = (signal: NodeJS.Signals) => {
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+process.on("unhandledRejection", (reason: unknown) => {
+  logger.error({ err: reason }, "Unhandled promise rejection detected");
+});
+
+process.on("uncaughtException", (error: Error) => {
+  logger.error({ err: error }, "Uncaught exception detected, exiting process");
+  process.exit(1);
+});
