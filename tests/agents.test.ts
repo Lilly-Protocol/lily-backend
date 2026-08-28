@@ -1,8 +1,8 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createApp } from "../src/app";
-import { agentsService } from "../src/modules/agents/agents.service";
+import { createApp } from "@/app";
+import { agentsService } from "@/modules/agents/agents.service";
 
 describe("agent endpoints", () => {
   const app = createApp();

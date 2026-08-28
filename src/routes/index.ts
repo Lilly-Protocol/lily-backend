@@ -1,7 +1,7 @@
 import { Router } from "express";
 
-import { agentsRouter } from "../modules/agents/agents.routes";
-import { healthRouter } from "../modules/health/health.routes";
+import { agentsRouter } from "@/modules/agents/agents.routes";
+import { healthRouter } from "@/modules/health/health.routes";
 
 export const apiRouter = Router();
 

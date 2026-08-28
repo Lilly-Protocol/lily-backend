@@ -1,55 +1,57 @@
-import type {
-  Agent,
-  CreateAgentInput,
-  CreateAgentResponse,
-  ListAgentsResponse,
-} from "./agents.types";
+import { randomUUID } from "node:crypto";
 
-const seedAgents = (): Agent[] => [
+import type { Agent, CreateAgentInput } from "@/modules/agents/agents.types";
+
+const initialAgents: Agent[] = [
   {
     id: "agentlily_demo_001",
     name: "Treasury Settlement Agent",
     description:
-      "Demonstration AgentLily responsible for mock treasury settlement workflows.",
-    walletAddress: "GBLILYDEMOSETTLEMENTWALLET000000000000000000001",
+      "AgentLily instance responsible for orchestrating treasury rebalancing operations.",
+    walletAddress: "GBVDO6P6E3S6XG2Z5V5L7N3Z6Y2K4J5H7F8D9S0A1B2C3D4E5F6G7H8I",
     status: "active",
-    capabilities: ["wallet-provisioning", "usdc-payments", "settlement"],
-    createdAt: new Date("2026-05-16T00:00:00.000Z").toISOString(),
+    capabilities: ["settlement", "rebalance", "liquidity-monitoring"],
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   },
 ];
 
-const agentsStore: Agent[] = seedAgents();
-
-const createWalletAddress = (seed: string): string => {
-  const normalizedSeed = seed.replace(/[^a-z0-9]/gi, "").toUpperCase();
-  return `G${normalizedSeed.padEnd(55, "0").slice(0, 55)}`;
-};
+let agents: Agent[] = [...initialAgents];
 
 export const agentsService = {
-  listAgents(): ListAgentsResponse {
-    return {
-      agents: agentsStore,
-      total: agentsStore.length,
-    };
-  },
+  listAgents: () => ({
+    total: agents.length,
+    agents: [...agents],
+  }),
 
-  createAgent(input: CreateAgentInput): CreateAgentResponse {
+  createAgent: (input: CreateAgentInput): Agent => {
+    const now = new Date();
+    const slug = input.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    const walletAddress = `G${slug.padEnd(55, "0").slice(0, 55)}`;
+
     const agent: Agent = {
-      id: `agentlily_${agentsStore.length + 1}`,
+      id: `agentlily_${agents.length + 1}`,
       name: input.name,
       description: input.description,
-      walletAddress: createWalletAddress(input.name),
+      walletAddress,
       status: "active",
       capabilities: input.capabilities,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
 
-    agentsStore.push(agent);
-
-    return { agent };
+    agents.push(agent);
+    return agent;
   },
 
-  reset(): void {
-    agentsStore.splice(0, agentsStore.length, ...seedAgents());
+  reset: () => {
+    agents = [
+      {
+        ...initialAgents[0]!,
+        id: "agentlily_demo_001",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ];
   },
 };

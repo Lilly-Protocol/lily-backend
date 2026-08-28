@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { env } from "../../config/env";
-import { logger } from "../../config/logger";
-import { AppError } from "./app-error";
+import { AppError } from "@/common/http/app-error";
+import { env } from "@/config/env";
+import { logger } from "@/config/logger";
 
 export const errorHandler = (
   error: Error,
