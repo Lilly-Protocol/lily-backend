@@ -19,6 +19,7 @@ describe("health endpoints", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe("NOT_FOUND");
     expect(response.body.message).toContain("Route not found");
   });
 });

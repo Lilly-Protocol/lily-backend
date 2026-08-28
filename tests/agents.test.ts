@@ -73,6 +73,7 @@ describe("agent endpoints", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
     expect(response.body.message).toBe("Request validation failed");
     expect(response.body.details.fieldErrors).toMatchObject({
       name: [expect.any(String)],

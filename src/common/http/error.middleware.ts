@@ -14,6 +14,10 @@ export const errorHandler = (
 
   const statusCode = error instanceof AppError ? error.statusCode : 500;
   const details = error instanceof AppError ? error.details : undefined;
+  const code =
+    error instanceof AppError
+      ? error.code ?? (statusCode === 500 ? "INTERNAL_SERVER_ERROR" : undefined)
+      : "INTERNAL_SERVER_ERROR";
 
   logger.error(
     {
@@ -27,6 +31,7 @@ export const errorHandler = (
 
   response.status(statusCode).json({
     success: false,
+    ...(code ? { code } : {}),
     message:
       statusCode === 500 && env.NODE_ENV === "production"
         ? "Internal server error"
