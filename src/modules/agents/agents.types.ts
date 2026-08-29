@@ -8,6 +8,7 @@ export interface Agent {
   status: AgentStatus;
   capabilities: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateAgentInput {

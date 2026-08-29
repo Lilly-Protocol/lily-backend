@@ -5,15 +5,22 @@ import { env } from "@/config/env";
 import { logger } from "@/config/logger";
 
 export const errorHandler = (
-  error: Error,
+  error: unknown,
   request: Request,
   response: Response,
   _next: NextFunction,
 ): void => {
   void _next;
 
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
-  const details = error instanceof AppError ? error.details : undefined;
+  const isAppError = error instanceof AppError;
+  const statusCode = isAppError ? error.statusCode : 500;
+  const details = isAppError ? error.details : undefined;
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "An unexpected error occurred";
 
   logger.error(
     {
@@ -30,7 +37,7 @@ export const errorHandler = (
     message:
       statusCode === 500 && env.NODE_ENV === "production"
         ? "Internal server error"
-        : error.message,
-    ...(details ? { details } : {}),
+        : rawMessage,
+    ...(details !== undefined ? { details } : {}),
   });
 };

@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
-
 import type { Agent, CreateAgentInput } from "@/modules/agents/agents.types";
+
+const MAX_IN_MEMORY_AGENTS = 5_000;
 
 const initialAgents: Agent[] = [
   {
@@ -11,12 +11,13 @@ const initialAgents: Agent[] = [
     walletAddress: "GBVDO6P6E3S6XG2Z5V5L7N3Z6Y2K4J5H7F8D9S0A1B2C3D4E5F6G7H8I",
     status: "active",
     capabilities: ["settlement", "rebalance", "liquidity-monitoring"],
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
   },
 ];
 
 let agents: Agent[] = [...initialAgents];
+let agentSequence = initialAgents.length + 1;
 
 export const agentsService = {
   listAgents: () => ({
@@ -24,13 +25,17 @@ export const agentsService = {
     agents: [...agents],
   }),
 
+  getAgentById: (id: string): Agent | undefined => {
+    return agents.find((agent) => agent.id === id);
+  },
+
   createAgent: (input: CreateAgentInput): Agent => {
-    const now = new Date();
+    const now = new Date().toISOString();
     const slug = input.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     const walletAddress = `G${slug.padEnd(55, "0").slice(0, 55)}`;
 
     const agent: Agent = {
-      id: `agentlily_${agents.length + 1}`,
+      id: `agentlily_${agentSequence++}`,
       name: input.name,
       description: input.description,
       walletAddress,
@@ -40,17 +45,22 @@ export const agentsService = {
       updatedAt: now,
     };
 
+    if (agents.length >= MAX_IN_MEMORY_AGENTS) {
+      agents.shift();
+    }
+
     agents.push(agent);
     return agent;
   },
 
   reset: () => {
+    agentSequence = initialAgents.length + 1;
     agents = [
       {
         ...initialAgents[0]!,
         id: "agentlily_demo_001",
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
       },
     ];
   },
