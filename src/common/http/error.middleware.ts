@@ -12,7 +12,25 @@ export const errorHandler = (
 ): void => {
   void _next;
 
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
+  // Handle Express JSON parse errors (malformed body)
+  if (error instanceof SyntaxError && "status" in error && error.status === 400) {
+    logger.error(
+      {
+        err: error,
+        method: request.method,
+        path: request.originalUrl,
+        statusCode: 400,
+      },
+      "Request failed",
+    );
+    response.status(400).json({
+      success: false,
+      message: "Malformed JSON",
+    });
+    return;
+  }
+
+ const statusCode = error instanceof AppError ? error.statusCode : 500;
   const details = error instanceof AppError ? error.details : undefined;
 
   logger.error(
