@@ -12,6 +12,24 @@ export const errorHandler = (
 ): void => {
   void _next;
 
+  // Handle Express payload too large errors (body size limit exceeded)
+  if ("status" in error && error.status === 413) {
+    logger.error(
+      {
+        err: error,
+        method: request.method,
+        path: request.originalUrl,
+        statusCode: 413,
+      },
+      "Request failed",
+    );
+    response.status(413).json({
+      success: false,
+      message: "Payload too large",
+    });
+    return;
+  }
+
   const statusCode = error instanceof AppError ? error.statusCode : 500;
   const details = error instanceof AppError ? error.details : undefined;
 
