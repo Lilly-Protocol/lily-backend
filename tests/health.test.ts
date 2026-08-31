@@ -12,7 +12,11 @@ describe("health endpoints", () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data.status).toBe("ok");
+    expect(response.body.data.service).toBe("Lily Backend");
+    expect(response.body.data.environment).toBeDefined();
+    expect(new Date(response.body.data.timestamp).toISOString()).toBe(response.body.data.timestamp);
   });
+
 
   it("returns a typed 404 payload for missing routes", async () => {
     const response = await request(app).get("/missing");
