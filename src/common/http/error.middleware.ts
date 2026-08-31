@@ -12,7 +12,12 @@ export const errorHandler = (
 ): void => {
   void _next;
 
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
+  const statusCode =
+    error instanceof AppError
+      ? error.statusCode
+      : "status" in error && typeof (error as { status?: unknown }).status === "number"
+        ? (error as { status: number }).status
+        : 500;
   const details = error instanceof AppError ? error.details : undefined;
 
   logger.error(

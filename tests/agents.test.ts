@@ -80,4 +80,16 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  it("rejects malformed JSON payloads with a 400 bad request error", async () => {
+    const response = await request(app)
+      .post("/api/v1/agents")
+      .set("Content-Type", "application/json")
+      .send('{"name": "broken json');
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBeDefined();
+  });
 });
+
