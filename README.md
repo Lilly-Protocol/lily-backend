@@ -84,6 +84,7 @@ npm run start
 npm run lint
 npm run format
 npm run test
+npm run test:coverage
 ```
 
 ## Project Structure
@@ -115,8 +116,9 @@ Every contribution is expected to pass:
 ```bash
 npm run lint
 npm run build
-npm run test
+npm run test:coverage
 ```
+
 
 ## Contributing
 
