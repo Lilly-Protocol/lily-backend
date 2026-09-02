@@ -1,7 +1,11 @@
 import { Router } from "express";
 
-import { v1Router } from "./v1.router";
+import { agentsRouter } from "@/modules/agents/agents.routes";
+import { healthRouter } from "@/modules/health/health.routes";
 
 export const apiRouter = Router();
 
-apiRouter.use("/v1", v1Router);
+apiRouter.use("/health", healthRouter);
+apiRouter.use("/metrics", metricsRouter);
+apiRouter.use("/agents", agentsRouter);
+apiRouter.use("/payments", paymentsRouter);

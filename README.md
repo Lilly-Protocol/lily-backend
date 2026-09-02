@@ -84,6 +84,7 @@ npm run start
 npm run lint
 npm run format
 npm run test
+npm run test:coverage
 ```
 
 ## Project Structure
@@ -115,19 +116,28 @@ Every contribution is expected to pass:
 ```bash
 npm run lint
 npm run build
-npm run test
+npm run test:coverage
 ```
 
-## API Versioning
-
-All API routes are mounted under a versioned prefix (`/api/v1`). The versioning strategy is:
-
-- **Prefix-based versioning**: Routes are grouped under `/api/v1/` via a dedicated `v1Router` in `src/routes/v1.router.ts`.
-- **Backward compatibility**: New minor changes within v1 must not break existing consumers.
-- **Future versions**: When breaking changes are needed, a new `v2Router` will be introduced at `/api/v2/`. The old v1 routes remain available until deprecation.
-- **Route discovery**: The root endpoint (`GET /`) returns a `docs` field pointing to the current versioned health check.
-- **Environment control**: The base API prefix is configurable via `API_PREFIX` (default: `/api`). The version segment (`/v1`) is managed by the router layer.
 
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines and local setup details.
+
+## API Versioning Strategy
+
+This backend uses **URL path versioning** as its primary API versioning mechanism.
+
+- All endpoints are mounted under `/api/v1/` (configurable via `API_PREFIX` env var)
+- When breaking changes are required, a new version module (`v2`) will be created and mounted alongside `v1`
+- The existing `v1` routes will continue to serve existing clients without modification
+- New major versions are introduced only for breaking changes; additive changes land in the current version
+- Deprecation of old versions follows a minimum 6-month notice period documented in release notes
+
+### Adding a New API Version
+
+1. Create `src/routes/v2/index.ts` with the new router
+2. Mount it in `src/app.ts`: `app.use("/api/v2", apiV2Router)`
+3. Keep `v1` routes unchanged for backward compatibility
+4. Document migration guide in `docs/migration/v1-to-v2.md`
+5. Announce deprecation timeline in CHANGELOG
