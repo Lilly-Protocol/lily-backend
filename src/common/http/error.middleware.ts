@@ -1,23 +1,25 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { env } from "../../config/env";
-import { logger } from "../../config/logger";
-import { AppError } from "./app-error";
+import { AppError } from "@/common/http/app-error";
+import { env } from "@/config/env";
+import { logger } from "@/config/logger";
 
 export const errorHandler = (
-  error: Error,
+  error: unknown,
   request: Request,
   response: Response,
   _next: NextFunction,
 ): void => {
   void _next;
 
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
-  const details = error instanceof AppError ? error.details : undefined;
-  const code =
+  const statusCode =
     error instanceof AppError
-      ? error.code ?? (statusCode === 500 ? "INTERNAL_SERVER_ERROR" : undefined)
-      : "INTERNAL_SERVER_ERROR";
+      ? error.statusCode
+      : "status" in error && typeof (error as { status?: unknown }).status === "number"
+        ? (error as { status: number }).status
+        : 500;
+  const details = error instanceof AppError ? error.details : undefined;
+  const isAppError = error instanceof AppError;
 
   logger.error(
     {
@@ -33,9 +35,9 @@ export const errorHandler = (
     success: false,
     ...(code ? { code } : {}),
     message:
-      statusCode === 500 && env.NODE_ENV === "production"
+      statusCode === 500 && !isAppError && env.NODE_ENV === "production"
         ? "Internal server error"
-        : error.message,
-    ...(details ? { details } : {}),
+        : rawMessage,
+    ...(details !== undefined ? { details } : {}),
   });
 };

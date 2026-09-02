@@ -6,13 +6,17 @@ export type ErrorCode =
   | (string & {});
 
 export class AppError extends Error {
+  public readonly statusCode: number;
+  public readonly details: unknown;
+
   constructor(
-    public readonly statusCode: number,
+    statusCode: number,
     message: string,
-    public readonly details?: unknown,
-    public readonly code?: string,
+    details?: unknown,
   ) {
     super(message);
     this.name = "AppError";
+    this.statusCode = statusCode;
+    this.details = details;
   }
 }
