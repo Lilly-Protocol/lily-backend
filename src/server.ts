@@ -17,17 +17,30 @@ server.listen(env.PORT, () => {
   );
 });
 
-const shutdown = (signal: NodeJS.Signals) => {
+let isShuttingDown = false;
+
+const shutdown = (signal: string) => {
+  if (isShuttingDown) {
+    return;
+  }
+  isShuttingDown = true;
+
   logger.info({ signal }, "Graceful shutdown started");
 
-  const forceTimer = setTimeout(() => {
-    logger.error("Graceful shutdown timed out after 10s, force terminating process");
+  // Force close after 10s if connections fail to drain
+  const forceTimeout = setTimeout(() => {
+    logger.error("Graceful shutdown timed out, forcing process exit");
     process.exit(1);
-  }, 10000);
-  forceTimer.unref();
+  }, 10_000);
+  forceTimeout.unref();
+
+  // Close idle connections to speed up draining
+  if (typeof server.closeIdleConnections === "function") {
+    server.closeIdleConnections();
+  }
 
   server.close((error) => {
-    clearTimeout(forceTimer);
+    clearTimeout(forceTimeout);
     if (error) {
       logger.error({ err: error }, "Error while shutting down server");
       process.exit(1);
@@ -41,11 +54,12 @@ const shutdown = (signal: NodeJS.Signals) => {
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-process.on("uncaughtException", (error: Error) => {
-  logger.fatal({ err: error }, "Uncaught exception detected, exiting process immediately");
-  process.exit(1);
+process.on("unhandledRejection", (reason: unknown) => {
+  logger.fatal({ err: reason }, "Unhandled Promise Rejection detected");
+  shutdown("unhandledRejection");
 });
 
-process.on("unhandledRejection", (reason: unknown) => {
-  logger.error({ err: reason }, "Unhandled promise rejection detected");
+process.on("uncaughtException", (error: Error) => {
+  logger.fatal({ err: error }, "Uncaught Exception detected");
+  shutdown("uncaughtException");
 });
