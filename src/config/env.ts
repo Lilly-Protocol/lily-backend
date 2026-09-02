@@ -9,6 +9,11 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   APP_NAME: z.string().min(1).default("Lily Backend"),
+  BUILD_COMMIT: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
   API_PREFIX: z.string().min(1).default("/api/v1"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
@@ -18,9 +23,20 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
   TRUST_PROXY: z
-    .enum(["true", "false"])
+    .string()
     .default("false")
-    .transform((value) => value === "true"),
+    .refine((val) => {
+      if (val === "true" || val === "false") return true;
+      const num = Number(val);
+      return Number.isInteger(num) && num >= 0;
+    }, {
+      message: `TRUST_PROXY must be "true", "false", or a non-negative integer hop count`,
+    })
+    .transform((value) => {
+      if (value === "false") return false as boolean | number;
+      if (value === "true") return true as boolean | number;
+      return Number(value) as boolean | number;
+    }),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
