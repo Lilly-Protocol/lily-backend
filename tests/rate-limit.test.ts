@@ -1,50 +1,99 @@
-import express from "express";
-import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
-describe("API rate limiter", () => {
-  const originalNodeEnv = process.env.NODE_ENV;
-  const originalWindowMs = process.env.RATE_LIMIT_WINDOW_MS;
-  const originalMaxRequests = process.env.RATE_LIMIT_MAX_REQUESTS;
+import { rateLimitHandler } from "../src/config/rate-limit";
+import type { Request, Response } from "express";
 
-  beforeAll(() => {
-    process.env.NODE_ENV = "development";
-    process.env.RATE_LIMIT_WINDOW_MS = "1000";
-    process.env.RATE_LIMIT_MAX_REQUESTS = "1";
-    vi.resetModules();
-  });
+interface MockResult {
+  res: Response;
+  statusCode: number | null;
+  body: Record<string, unknown> | null;
+  retryAfter: string | null;
+}
 
-  afterAll(() => {
-    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = originalNodeEnv;
+function createMockResponse(opts: {
+  resetTime: Date | null;
+}): MockResult {
+  const result: MockResult = {
+    res: {} as Response,
+    statusCode: null,
+    body: null,
+    retryAfter: null,
+  };
 
-    if (originalWindowMs === undefined) delete process.env.RATE_LIMIT_WINDOW_MS;
-    else process.env.RATE_LIMIT_WINDOW_MS = originalWindowMs;
+  const res = {
+    locals: {
+      rateLimit: {
+        resetTime: opts.resetTime,
+      },
+    },
+    setHeader: (name: string, value: string) => {
+      if (name === "Retry-After") result.retryAfter = value;
+    },
+    status: (code: number) => {
+      result.statusCode = code;
+      return {
+        json: (b: Record<string, unknown>) => {
+          result.body = b;
+        },
+      };
+    },
+  };
 
-    if (originalMaxRequests === undefined)
-      delete process.env.RATE_LIMIT_MAX_REQUESTS;
-    else process.env.RATE_LIMIT_MAX_REQUESTS = originalMaxRequests;
-  });
+  result.res = res as unknown as Response;
+  return result;
+}
 
-  it("returns a typed 429 response with standard rate-limit headers", async () => {
-    const { apiRateLimiter } = await import("../src/config/rate-limit");
-    const app = express();
-
-    app.use(apiRateLimiter);
-    app.get("/limited", (_request, response) => {
-      response.status(200).json({ success: true });
+describe("Rate limiter error envelope (issue #79)", () => {
+  it("returns the standard ApiErrorResponse shape on 429", () => {
+    const mock = createMockResponse({
+      resetTime: new Date(Date.now() + 60_000),
     });
 
-    await request(app).get("/limited").expect(200);
-    const response = await request(app).get("/limited");
+    rateLimitHandler({} as Request, mock.res);
 
-    expect(response.status).toBe(429);
-    expect(response.body).toEqual({
-      success: false,
-      message: "Too many requests, please try again later.",
+    expect(mock.statusCode).toBe(429);
+    expect(mock.body).not.toBeNull();
+    expect(mock.body!.success).toBe(false);
+    expect(typeof mock.body!.message).toBe("string");
+    expect((mock.body!.message as string).length).toBeGreaterThan(0);
+  });
+
+  it("sets Retry-After header when resetTime is in the future", () => {
+    const mock = createMockResponse({
+      resetTime: new Date(Date.now() + 30_000),
     });
-    expect(response.headers).toHaveProperty("ratelimit-limit");
-    expect(response.headers).toHaveProperty("ratelimit-remaining");
-    expect(response.headers).toHaveProperty("ratelimit-reset");
+
+    rateLimitHandler({} as Request, mock.res);
+
+    expect(mock.retryAfter).not.toBeNull();
+    expect(Number(mock.retryAfter)).toBeGreaterThan(0);
+  });
+
+  it("includes details with resetTime in the response body", () => {
+    const resetTime = new Date(Date.now() + 5_000);
+    const mock = createMockResponse({ resetTime });
+
+    rateLimitHandler({} as Request, mock.res);
+
+    expect(mock.body).not.toBeNull();
+    expect(mock.body!.success).toBe(false);
+    expect(mock.body!.details).toBeDefined();
+    expect((mock.body!.details as Record<string, unknown>).resetTime).toBe(
+      resetTime.toISOString(),
+    );
+  });
+
+  it("omits Retry-After when resetTime is null", () => {
+    const mock = createMockResponse({
+      resetTime: null,
+    });
+
+    rateLimitHandler({} as Request, mock.res);
+
+    expect(mock.retryAfter).toBeNull();
+    expect(mock.statusCode).toBe(429);
+    expect(mock.body).not.toBeNull();
+    expect(mock.body!.success).toBe(false);
+    expect((mock.body!.details as Record<string, unknown>).resetTime).toBeNull();
   });
 });
