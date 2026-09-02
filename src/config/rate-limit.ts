@@ -10,6 +10,7 @@ export const apiRateLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === "test",
   message: {
     success: false,
+    code: "RATE_LIMITED",
     message: "Too many requests, please try again later.",
   },
 });
