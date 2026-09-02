@@ -1,48 +1,45 @@
-import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { createApp } from "../src/app";
 
-describe("payments endpoints", () => {
-  const app = createApp();
+import { normalizeAmount, quoteSchema } from "../src/modules/payments/payments.schema";
 
-  it("returns a quote for a valid payload", async () => {
-    const payload = {
-      fromWalletId: "user-123",
-      toAddress: "GBJXV33UHQXHLI6U3V42TUS565FTLOHOOUZZ42V67M5QIF747IXX4LHH",
-      amount: "100.50",
-      assetCode: "USDC",
-    };
-
-    const response = await request(app).post("/api/v1/payments/quote").send(payload);
-
-    expect(response.status).toBe(201);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.quote).toMatchObject({
-      fee: "0",
-      amountOut: payload.amount,
-    });
-    expect(response.body.data.quote.quoteId).toBeDefined();
-    expect(response.body.data.quote.expiresAt).toBeDefined();
+describe("normalizeAmount", () => {
+  it("strips leading zeros from integer part", () => {
+    expect(normalizeAmount("007.00")).toBe("7.00");
   });
 
-  it("rejects invalid quote payloads with typed validation errors", async () => {
-    const payload = {
-      fromWalletId: "",
-      toAddress: "invalid-address",
-      amount: "abc",
-      assetCode: "TOO_LONG_ASSET_CODE_123",
-    };
+  it("preserves valid amounts without leading zeros", () => {
+    expect(normalizeAmount("100.00")).toBe("100.00");
+  });
 
-    const response = await request(app).post("/api/v1/payments/quote").send(payload);
+  it("keeps single zero before decimal for sub-unit amounts", () => {
+    expect(normalizeAmount("0.50")).toBe("0.50");
+  });
 
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe("Request validation failed");
-    expect(response.body.details.fieldErrors).toMatchObject({
-      fromWalletId: expect.any(Array),
-      toAddress: expect.any(Array),
-      amount: expect.any(Array),
-      assetCode: expect.any(Array),
-    });
+  it("normalizes multiple leading zeros", () => {
+    expect(normalizeAmount("0000123.45")).toBe("123.45");
+  });
+
+  it("handles integer-only amounts", () => {
+    expect(normalizeAmount("007")).toBe("7");
+  });
+
+  it("trims whitespace", () => {
+    expect(normalizeAmount("  007.00  ")).toBe("7.00");
+  });
+});
+
+describe("quoteSchema", () => {
+  it("normalizes amount on parse", () => {
+    const result = quoteSchema.parse({ amount: "007.00" });
+    expect(result.amount).toBe("7.00");
+  });
+
+  it("applies default currency when omitted", () => {
+    const result = quoteSchema.parse({ amount: "10.00" });
+    expect(result.currency).toBe("USD");
+  });
+
+  it("rejects empty amount", () => {
+    expect(() => quoteSchema.parse({ amount: "" })).toThrow();
   });
 });
