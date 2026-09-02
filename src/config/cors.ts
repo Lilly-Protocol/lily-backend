@@ -23,7 +23,7 @@ export const corsOptions: CorsOptions = {
       return;
     }
 
-    callback(new AppError(403, "Origin not allowed by CORS"));
+    callback(new AppError(403, "Origin is not allowed by CORS policy"));
   },
   credentials: false,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
