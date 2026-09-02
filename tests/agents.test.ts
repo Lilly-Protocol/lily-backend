@@ -1,14 +1,23 @@
+import type { Express } from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createApp } from "../src/app";
-import { agentsService } from "../src/modules/agents/agents.service";
+import { createApp } from "@/app";
+import { agentsService } from "@/modules/agents/agents.service";
 
 describe("agent endpoints", () => {
-  const app = createApp();
+  let app: Express;
 
-  beforeEach(() => {
-    agentsService.reset();
+  beforeEach(async () => {
+    app = await createIsolatedTestApp();
+  });
+
+  it("does not expose test-only reset behavior from the production service", async () => {
+    const { agentsService } = await import(
+      "../src/modules/agents/agents.service"
+    );
+
+    expect(agentsService).not.toHaveProperty("reset");
   });
 
   it("returns seeded agents so contributors can inspect a real module", async () => {
@@ -25,12 +34,21 @@ describe("agent endpoints", () => {
     });
   });
 
+  it("returns a list envelope whose total matches the number of agents", async () => {
+    const response = await request(app).get("/api/v1/agents");
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.data.agents)).toBe(true);
+    expect(response.body.data.total).toBe(response.body.data.agents.length);
+  });
+
   it("creates an agent with validated input", async () => {
     const response = await request(app).post("/api/v1/agents").send({
       name: "Liquidity Bot",
       description:
         "AgentLily responsible for orchestrating liquidity and payment workflows.",
-      capabilities: ["liquidity-management", "payments"],
+      capabilities: ["usdc-payments", "payments"],
     });
 
     expect(response.status).toBe(201);
@@ -41,7 +59,7 @@ describe("agent endpoints", () => {
       description:
         "AgentLily responsible for orchestrating liquidity and payment workflows.",
       status: "active",
-      capabilities: ["liquidity-management", "payments"],
+      capabilities: ["usdc-payments", "payments"],
     });
     expect(response.body.data.agent.walletAddress).toMatch(/^GLIQUIDITYBOT0+/);
   });
@@ -51,16 +69,38 @@ describe("agent endpoints", () => {
       name: "Marketplace Runner",
       description:
         "AgentLily responsible for purchasing tools and settling marketplace invoices.",
-      capabilities: ["marketplace-purchases", "settlement"],
+      capabilities: ["settlement", "settlement"],
     });
 
     const response = await request(app).get("/api/v1/agents");
 
     expect(response.status).toBe(200);
-    expect(response.body.data.total).toBe(2);
-    expect(response.body.data.agents[1]).toMatchObject({
-      id: "agentlily_2",
+    expect(response.body.data.total).toBe(3);
+    expect(
+      response.body.data.agents.map((agent: { id: string }) => agent.id),
+    ).toEqual(["agentlily_demo_001", "agentlily_2", "agentlily_3"]);
+    expect(response.body.data.agents[2]).toMatchObject({
       name: "Marketplace Runner",
+      capabilities: ["marketplace-purchases", "settlement"],
+    });
+  });
+
+  it("rejects unknown keys in agent creation payloads", async () => {
+    const response = await request(app)
+      .post("/api/v1/agents")
+      .send({
+        name: "Treasury Bot",
+        description:
+          "AgentLily responsible for treasury management and payment routing.",
+        capabilities: ["treasury-management"],
+        admin: true,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBe("Request validation failed");
+    expect(response.body.details.fieldErrors).toMatchObject({
+      admin: [expect.stringContaining("Unrecognized key")],
     });
   });
 
@@ -73,6 +113,7 @@ describe("agent endpoints", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
     expect(response.body.message).toBe("Request validation failed");
     expect(response.body.details.fieldErrors).toMatchObject({
       name: [expect.any(String)],
@@ -80,4 +121,63 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  it("pauses an existing agent", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.id).toBe("agentlily_demo_001");
+    expect(response.body.data.agent.status).toBe("paused");
+  });
+
+  it("resumes the same agent", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
+
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.status).toBe("active");
+  });
+
+  it("rejects invalid status with 400", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "disabled" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBe("Request validation failed");
+  });
+
+  it("returns 404 for unknown agent ID", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/does-not-exist")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+  });
+
+  it("persists status change in the list endpoint", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    const response = await request(app).get("/api/v1/agents");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.agents[0]).toMatchObject({
+      id: "agentlily_demo_001",
+      status: "paused",
+    });
+  });
 });
+
