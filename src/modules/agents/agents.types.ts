@@ -8,6 +8,7 @@ export interface Agent {
   status: AgentStatus;
   capabilities: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateAgentInput {
@@ -25,14 +26,6 @@ export interface CreateAgentResponse {
   agent: Agent;
 }
 
-export interface GetAgentResponse {
+export interface UpdateAgentStatusResponse {
   agent: Agent;
-}
-
-export interface PatchAgentInput {
-  status?: AgentStatus;
-}
-
-export interface DeleteAgentResponse {
-  deleted: boolean;
 }
