@@ -7,3 +7,9 @@ export const createAgentSchema = z.object({
 });
 
 export type CreateAgentSchema = z.infer<typeof createAgentSchema>;
+
+export const agentStatusSchema = z.object({
+  status: z.enum(["active", "paused"]),
+});
+
+export type AgentStatusSchema = z.infer<typeof agentStatusSchema>;

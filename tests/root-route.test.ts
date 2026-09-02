@@ -1,31 +1,19 @@
-import { describe, it, expect } from "vitest";
 import request from "supertest";
+import { describe, expect, it } from "vitest";
+
 import { createApp } from "../src/app";
 
-describe("Root route response shape (issue #141)", () => {
+describe("root route", () => {
   const app = createApp();
 
-  it("should return 200 with success: true", async () => {
-    const res = await request(app).get("/");
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-  });
+  it("returns 200 with success true and docs pointing at the health endpoint", async () => {
+    const response = await request(app).get("/");
 
-  it("should include a message string", async () => {
-    const res = await request(app).get("/");
-    expect(typeof res.body.message).toBe("string");
-    expect(res.body.message.length).toBeGreaterThan(0);
-  });
-
-  it("should include docs pointing to the health endpoint", async () => {
-    const res = await request(app).get("/");
-    expect(typeof res.body.docs).toBe("string");
-    expect(res.body.docs).toContain("/health");
-  });
-
-  it("should not use the standard data envelope shape", async () => {
-    const res = await request(app).get("/");
-    // Root route intentionally uses {success, message, docs} instead of {success, data}
-    expect(res.body.data).toBeUndefined();
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toEqual(expect.any(String));
+    // Root route intentionally uses a non-data envelope; docs must reference the API-prefixed health path.
+    expect(response.body.docs).toBe("/api/v1/health");
+    expect(response.body).not.toHaveProperty("data");
   });
 });
