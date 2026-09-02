@@ -1,8 +1,10 @@
+import { AppError } from "../../common/http/app-error";
 import type {
   Agent,
   CreateAgentInput,
   CreateAgentResponse,
   ListAgentsResponse,
+  UpdateAgentStatusResponse,
 } from "./agents.types";
 
 const seedAgents = (): Agent[] => [
@@ -45,6 +47,18 @@ export const agentsService = {
     };
 
     agentsStore.push(agent);
+
+    return { agent };
+  },
+
+  updateAgentStatus(id: string, status: Agent["status"]): UpdateAgentStatusResponse {
+    const agent = agentsStore.find((a) => a.id === id);
+
+    if (!agent) {
+      throw new AppError(404, "Agent not found");
+    }
+
+    agent.status = status;
 
     return { agent };
   },

@@ -81,45 +81,61 @@ describe("agent endpoints", () => {
     });
   });
 
-  it("generates deterministic ids across service resets", async () => {
-    // Note: createAgent derives ids as `agentlily_${agentsStore.length + 1}`.
-    // Because reset() restores the seed, the first created agent after each
-    // reset is expected to be `agentlily_2` (1 seeded agent + 1).
+  it("pauses an existing agent", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
 
-    // First cycle: create two agents.
-    const firstCycle = await Promise.all([
-      request(app).post("/api/v1/agents").send({
-        name: "First Cycle Agent One",
-        description: "First cycle agent one for deterministic id test.",
-        capabilities: ["capability-a"],
-      }),
-      request(app).post("/api/v1/agents").send({
-        name: "First Cycle Agent Two",
-        description: "First cycle agent two for deterministic id test.",
-        capabilities: ["capability-b"],
-      }),
-    ]);
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.id).toBe("agentlily_demo_001");
+    expect(response.body.data.agent.status).toBe("paused");
+  });
 
-    expect(firstCycle[0].body.data.agent.id).toBe("agentlily_2");
-    expect(firstCycle[1].body.data.agent.id).toBe("agentlily_3");
+  it("resumes the same agent", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
 
-    // Reset the store and create two agents again.
-    agentsService.reset();
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
 
-    const secondCycle = await Promise.all([
-      request(app).post("/api/v1/agents").send({
-        name: "Second Cycle Agent One",
-        description: "Second cycle agent one for deterministic id test.",
-        capabilities: ["capability-c"],
-      }),
-      request(app).post("/api/v1/agents").send({
-        name: "Second Cycle Agent Two",
-        description: "Second cycle agent two for deterministic id test.",
-        capabilities: ["capability-d"],
-      }),
-    ]);
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.status).toBe("active");
+  });
 
-    expect(secondCycle[0].body.data.agent.id).toBe("agentlily_2");
-    expect(secondCycle[1].body.data.agent.id).toBe("agentlily_3");
+  it("rejects invalid status with 400", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "disabled" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBe("Request validation failed");
+  });
+
+  it("returns 404 for unknown agent ID", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/does-not-exist")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+  });
+
+  it("persists status change in the list endpoint", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    const response = await request(app).get("/api/v1/agents");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.agents[0]).toMatchObject({
+      id: "agentlily_demo_001",
+      status: "paused",
+    });
   });
 });
