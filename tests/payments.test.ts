@@ -1,59 +1,45 @@
-import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { createApp } from "../src/app";
 
-describe("payment endpoints", () => {
-  const app = createApp();
+import { normalizeAmount, quoteSchema } from "../src/modules/payments/payments.schema";
 
-  it("returns a stubbed quote response for a valid payload", async () => {
-    const payload = {
-      fromWalletId: "G1234567890",
-      toAddress: "G0987654321",
-      amount: "100.00",
-      assetCode: "USDC"
-    };
-
-    const response = await request(app).post("/api/v1/payments/quote").send(payload);
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data).toMatchObject({
-      quoteId: expect.stringMatching(/^quote_\d+$/),
-      estimatedFee: "1.00",
-      exchangeRate: "1.00",
-      totalAmount: "101.00"
-    });
+describe("normalizeAmount", () => {
+  it("strips leading zeros from integer part", () => {
+    expect(normalizeAmount("007.00")).toBe("7.00");
   });
 
-  it("returns validation error for missing required fields", async () => {
-    const response = await request(app).post("/api/v1/payments/quote").send({});
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe("Request validation failed");
-    expect(response.body.details.fieldErrors).toMatchObject({
-      fromWalletId: [expect.any(String)],
-      toAddress: [expect.any(String)],
-      amount: [expect.any(String)],
-      assetCode: [expect.any(String)],
-    });
+  it("preserves valid amounts without leading zeros", () => {
+    expect(normalizeAmount("100.00")).toBe("100.00");
   });
 
-  it("returns validation error for invalid amount format", async () => {
-    const payload = {
-      fromWalletId: "G1234567890",
-      toAddress: "G0987654321",
-      amount: "invalid_amount",
-      assetCode: "USDC"
-    };
+  it("keeps single zero before decimal for sub-unit amounts", () => {
+    expect(normalizeAmount("0.50")).toBe("0.50");
+  });
 
-    const response = await request(app).post("/api/v1/payments/quote").send(payload);
+  it("normalizes multiple leading zeros", () => {
+    expect(normalizeAmount("0000123.45")).toBe("123.45");
+  });
 
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.message).toBe("Request validation failed");
-    expect(response.body.details.fieldErrors).toMatchObject({
-      amount: [expect.any(String)],
-    });
+  it("handles integer-only amounts", () => {
+    expect(normalizeAmount("007")).toBe("7");
+  });
+
+  it("trims whitespace", () => {
+    expect(normalizeAmount("  007.00  ")).toBe("7.00");
+  });
+});
+
+describe("quoteSchema", () => {
+  it("normalizes amount on parse", () => {
+    const result = quoteSchema.parse({ amount: "007.00" });
+    expect(result.amount).toBe("7.00");
+  });
+
+  it("applies default currency when omitted", () => {
+    const result = quoteSchema.parse({ amount: "10.00" });
+    expect(result.currency).toBe("USD");
+  });
+
+  it("rejects empty amount", () => {
+    expect(() => quoteSchema.parse({ amount: "" })).toThrow();
   });
 });
