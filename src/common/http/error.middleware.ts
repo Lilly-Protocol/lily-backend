@@ -12,15 +12,14 @@ export const errorHandler = (
 ): void => {
   void _next;
 
+  const statusCode =
+    error instanceof AppError
+      ? error.statusCode
+      : "status" in error && typeof (error as { status?: unknown }).status === "number"
+        ? (error as { status: number }).status
+        : 500;
+  const details = error instanceof AppError ? error.details : undefined;
   const isAppError = error instanceof AppError;
-  const statusCode = isAppError ? error.statusCode : 500;
-  const details = isAppError ? error.details : undefined;
-  const rawMessage =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "An unexpected error occurred";
 
   logger.error(
     {
@@ -35,7 +34,7 @@ export const errorHandler = (
   response.status(statusCode).json({
     success: false,
     message:
-      statusCode === 500 && env.NODE_ENV === "production"
+      statusCode === 500 && !isAppError && env.NODE_ENV === "production"
         ? "Internal server error"
         : rawMessage,
     ...(details !== undefined ? { details } : {}),

@@ -1,4 +1,11 @@
-import type { Agent, CreateAgentInput } from "@/modules/agents/agents.types";
+import { AppError } from "../../common/http/app-error";
+import type {
+  Agent,
+  CreateAgentInput,
+  CreateAgentResponse,
+  ListAgentsResponse,
+  UpdateAgentStatusResponse,
+} from "./agents.types";
 
 const MAX_IN_MEMORY_AGENTS = 5_000;
 
@@ -53,15 +60,19 @@ export const agentsService = {
     return agent;
   },
 
-  reset: () => {
-    agentSequence = initialAgents.length + 1;
-    agents = [
-      {
-        ...initialAgents[0]!,
-        id: "agentlily_demo_001",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ];
+  updateAgentStatus(id: string, status: Agent["status"]): UpdateAgentStatusResponse {
+    const agent = agentsStore.find((a) => a.id === id);
+
+    if (!agent) {
+      throw new AppError(404, "Agent not found");
+    }
+
+    agent.status = status;
+
+    return { agent };
+  },
+
+  reset(): void {
+    agentsStore.splice(0, agentsStore.length, ...seedAgents());
   },
 };

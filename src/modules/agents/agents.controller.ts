@@ -1,12 +1,8 @@
 import type { Request, Response } from "express";
 
-import type { ApiSuccessResponse } from "@/common/types/api-response";
-import { agentsService } from "@/modules/agents/agents.service";
-import type {
-  CreateAgentInput,
-  CreateAgentResponse,
-  ListAgentsResponse,
-} from "@/modules/agents/agents.types";
+import type { ApiSuccessResponse } from "../../common/types/api-response";
+import type { CreateAgentResponse, ListAgentsResponse, UpdateAgentStatusResponse } from "./agents.types";
+import { agentsService } from "./agents.service";
 
 export const listAgents = (
   _request: Request,
@@ -29,5 +25,20 @@ export const createAgent = (
     data: {
       agent,
     },
+  });
+};
+
+export const updateAgentStatus = (
+  request: Request<{ id: string }>,
+  response: Response<ApiSuccessResponse<UpdateAgentStatusResponse>>,
+): void => {
+  const { id } = request.params;
+  const { status } = request.body;
+
+  const result = agentsService.updateAgentStatus(id, status);
+
+  response.status(200).json({
+    success: true,
+    data: result,
   });
 };
