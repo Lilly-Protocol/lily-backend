@@ -1,5 +1,4 @@
-import { env } from "../../config/env";
-import { buildInfo } from "../../config/build-info";
+import { env } from "@/config/env";
 
 export const healthService = {
   getStatus: () => ({
