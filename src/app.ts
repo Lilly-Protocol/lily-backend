@@ -5,7 +5,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 
 import { errorHandler } from "./common/http/error.middleware";
-import { notFoundHandler } from "./common/http/not-found.middleware";
+import { methodNotAllowedHandler, notFoundHandler } from "./common/http/not-found.middleware";
 import { corsOptions } from "./config/cors";
 import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
@@ -53,6 +53,7 @@ export const createApp = () => {
   });
 
   app.use(env.API_PREFIX, apiRouter);
+  app.use(methodNotAllowedHandler(apiRouter));
   app.use(notFoundHandler);
   app.use(errorHandler);
 
