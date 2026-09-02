@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 
-import type { ApiSuccessResponse } from "../../common/types/api-response";
-import { healthService } from "./health.service";
+import type { ApiSuccessResponse } from "@/common/types/api-response";
+import { healthService } from "@/modules/health/health.service";
 
 export const getHealthStatus = (
   _request: Request,
