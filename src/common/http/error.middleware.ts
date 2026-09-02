@@ -1,34 +1,29 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { env } from "../../config/env";
-import { logger } from "../../config/logger";
-import { AppError } from "./app-error";
+import { AppError } from "@/common/http/app-error";
+import { env } from "@/config/env";
+import { logger } from "@/config/logger";
 
 export const errorHandler = (
-  error: Error,
+  error: unknown,
   request: Request,
   response: Response,
   _next: NextFunction,
 ): void => {
   void _next;
 
-  let statusCode: number;
-  let details: unknown;
+  const statusCode =
+    error instanceof AppError
+      ? error.statusCode
+      : "status" in error && typeof (error as { status?: unknown }).status === "number"
+        ? (error as { status: number }).status
+        : 500;
+  const details = error instanceof AppError ? error.details : undefined;
+  const isAppError = error instanceof AppError;
 
-  if (error instanceof AppError) {
-    statusCode = error.statusCode;
-    details = error.details;
-  } else if (
-    error instanceof SyntaxError &&
-    "body" in error &&
-    typeof (error as SyntaxError & { body?: unknown }).body === "string"
-  ) {
-    statusCode = 400;
-  } else {
-    statusCode = 500;
-  }
+  const logLevel = statusCode >= 400 && statusCode < 500 ? "warn" : "error";
 
-  logger.error(
+  logger[logLevel](
     {
       err: error,
       method: request.method,
@@ -40,10 +35,11 @@ export const errorHandler = (
 
   response.status(statusCode).json({
     success: false,
+    ...(code ? { code } : {}),
     message:
-      statusCode === 500 && env.NODE_ENV === "production"
+      statusCode === 500 && !isAppError && env.NODE_ENV === "production"
         ? "Internal server error"
-        : error.message,
-    ...(details ? { details } : {}),
+        : rawMessage,
+    ...(details !== undefined ? { details } : {}),
   });
 };
