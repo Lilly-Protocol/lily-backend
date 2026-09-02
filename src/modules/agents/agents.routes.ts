@@ -1,10 +1,11 @@
 import { Router } from "express";
 
 import { validateBody } from "../../common/http/validate.middleware";
-import { createAgent, listAgents } from "./agents.controller";
-import { createAgentSchema } from "./agents.schema";
+import { createAgent, listAgents, updateAgentStatus } from "./agents.controller";
+import { createAgentSchema, agentStatusSchema } from "./agents.schema";
 
 export const agentsRouter = Router();
 
 agentsRouter.get("/", listAgents);
 agentsRouter.post("/", validateBody(createAgentSchema), createAgent);
+agentsRouter.patch("/:id", validateBody(agentStatusSchema), updateAgentStatus);

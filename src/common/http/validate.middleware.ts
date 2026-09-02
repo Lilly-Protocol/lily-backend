@@ -1,7 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import type { ZodTypeAny } from "zod";
 
-import { AppError } from "./app-error";
+import { AppError } from "@/common/http/app-error";
 
 export const validateBody = <TSchema extends ZodTypeAny>(
   schema: TSchema,
@@ -11,7 +11,12 @@ export const validateBody = <TSchema extends ZodTypeAny>(
 
     if (!result.success) {
       next(
-        new AppError(400, "Request validation failed", result.error.flatten()),
+        new AppError(
+          400,
+          "Request validation failed",
+          result.error.flatten(),
+          "VALIDATION_ERROR",
+        ),
       );
       return;
     }
