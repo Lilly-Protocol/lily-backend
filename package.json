@@ -39,6 +39,7 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^13.3.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
