@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
-import { securityConfig } from "./config/env";
+import { buildInfo } from "./config/build-info";
 
 const app = createApp();
 const server = createServer(app);
@@ -16,29 +16,36 @@ server.listen(env.PORT, () => {
     {
       appName: env.APP_NAME,
       environment: env.NODE_ENV,
-      port: env.PORT,
-      apiPrefix: env.API_PREFIX,
-      logLevel: env.LOG_LEVEL,
-      rateLimitWindowMs: securityConfig.rateLimitWindowMs,
-      rateLimitMaxRequests: securityConfig.rateLimitMaxRequests,
-      allowedOrigins: securityConfig.allowedOrigins,
-      bodySizeLimit: securityConfig.bodySizeLimit,
-      trustProxy: securityConfig.trustProxy,
-      warnings: [
-        ...(usingDefault(env.CORS_ORIGINS, defaultOrigins)
-          ? ["CORS_ORIGINS is the default value"]
-          : []),
-        ...(env.NODE_ENV === "development" ? ["NODE_ENV is development"] : []),
-      ],
+      ...buildInfo,
     },
     "Lily backend server started with resolved configuration",
   );
 });
 
-const shutdown = (signal: NodeJS.Signals) => {
+let isShuttingDown = false;
+
+const shutdown = (signal: string) => {
+  if (isShuttingDown) {
+    return;
+  }
+  isShuttingDown = true;
+
   logger.info({ signal }, "Graceful shutdown started");
 
+  // Force close after 10s if connections fail to drain
+  const forceTimeout = setTimeout(() => {
+    logger.error("Graceful shutdown timed out, forcing process exit");
+    process.exit(1);
+  }, 10_000);
+  forceTimeout.unref();
+
+  // Close idle connections to speed up draining
+  if (typeof server.closeIdleConnections === "function") {
+    server.closeIdleConnections();
+  }
+
   server.close((error) => {
+    clearTimeout(forceTimeout);
     if (error) {
       logger.error({ err: error }, "Error while shutting down server");
       process.exit(1);
@@ -49,5 +56,18 @@ const shutdown = (signal: NodeJS.Signals) => {
   });
 };
 
+const normalizeError = (reason: unknown): Error =>
+  reason instanceof Error ? reason : new Error(String(reason));
+
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+process.on("unhandledRejection", (reason: unknown) => {
+  logger.fatal({ err: reason }, "Unhandled Promise Rejection detected");
+  shutdown("unhandledRejection");
+});
+
+process.on("uncaughtException", (error: Error) => {
+  logger.fatal({ err: error }, "Uncaught Exception detected");
+  shutdown("uncaughtException");
+});
