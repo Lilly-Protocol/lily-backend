@@ -20,17 +20,64 @@ describe("agent endpoints", () => {
     expect(agentsService).not.toHaveProperty("reset");
   });
 
-  it("returns seeded agents so contributors can inspect a real module", async () => {
-    const response = await request(app).get("/api/v1/agents");
+  describe("AC1: Test create agent happy path", () => {
+    it("creates an agent with valid input and returns 201", async () => {
+      const payload = {
+        name: "Liquidity Bot",
+        description:
+          "AgentLily responsible for orchestrating liquidity and payment workflows.",
+        capabilities: ["liquidity-management", "payments"],
+      };
 
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.total).toBe(1);
-    expect(response.body.data.agents[0]).toMatchObject({
-      id: "agentlily_demo_001",
-      name: "Treasury Settlement Agent",
-      walletAddress: expect.stringMatching(/^G[A-Z0-9]+$/),
-      status: "active",
+      const response = await request(app)
+        .post("/api/v1/agents")
+        .send(payload);
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.agent).toMatchObject({
+        id: "agentlily_2",
+        name: payload.name,
+        description: payload.description,
+        status: "active",
+        capabilities: payload.capabilities,
+      });
+      expect(response.body.data.agent.walletAddress).toMatch(/^GLIQUIDITYBOT0+/);
+      expect(response.body.data.agent.createdAt).toBeDefined();
+    });
+
+    it("generates deterministic wallet address from agent name", async () => {
+      const response = await request(app).post("/api/v1/agents").send({
+        name: "Treasury Bot",
+        description: "Handles treasury operations and settlements.",
+        capabilities: ["treasury-management"],
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.agent.walletAddress).toMatch(/^GTREASURYBOT0+/);
+    });
+
+    it("accepts minimal valid capabilities array", async () => {
+      const response = await request(app).post("/api/v1/agents").send({
+        name: "Simple Agent",
+        description: "A minimal agent with single capability.",
+        capabilities: ["basic-operation"],
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.agent.capabilities).toEqual(["basic-operation"]);
+    });
+
+    it("accepts maximum valid capabilities count", async () => {
+      const maxCapabilities = Array.from({ length: 10 }, (_, i) => `capability-${i}`);
+      const response = await request(app).post("/api/v1/agents").send({
+        name: "Full Featured Agent",
+        description: "An agent with the maximum number of capabilities allowed.",
+        capabilities: maxCapabilities,
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.agent.capabilities).toHaveLength(10);
     });
   });
 
@@ -72,7 +119,12 @@ describe("agent endpoints", () => {
       capabilities: ["settlement", "settlement"],
     });
 
-    const response = await request(app).get("/api/v1/agents");
+    it("rejects agent with description too short (< 10 chars)", async () => {
+      const response = await request(app).post("/api/v1/agents").send({
+        name: "Valid Agent",
+        description: "too short",
+        capabilities: ["test"],
+      });
 
     expect(response.status).toBe(200);
     expect(response.body.data.total).toBe(3);
@@ -104,11 +156,19 @@ describe("agent endpoints", () => {
     });
   });
 
-  it("rejects invalid agent payloads with typed validation errors", async () => {
-    const response = await request(app).post("/api/v1/agents").send({
-      name: "A",
-      description: "too short",
-      capabilities: [],
+  describe("AC3: Test list agents happy path", () => {
+    it("returns seeded agents on initial list request", async () => {
+      const response = await request(app).get("/api/v1/agents");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.total).toBe(1);
+      expect(response.body.data.agents).toHaveLength(1);
+      expect(response.body.data.agents[0]).toMatchObject({
+        id: "agentlily_demo_001",
+        name: "Treasury Settlement Agent",
+        status: "active",
+      });
     });
 
     expect(response.status).toBe(400);
