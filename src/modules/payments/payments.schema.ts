@@ -1,36 +1,28 @@
 import { z } from "zod";
 
-const stellarAccountIdSchema = z
-  .string()
-  .regex(
-    /^G[A-Z2-7]{55}$/,
-    "Must be a 56 character Stellar account ID starting with G",
-  );
+/**
+ * Normalizes a decimal amount string by stripping leading zeros
+ * while preserving the canonical decimal form.
+ * "007.00" -> "7.00", "0.50" -> "0.50", "100.00" -> "100.00"
+ */
+export const normalizeAmount = (val: string): string => {
+  const trimmed = val.trim();
+  if (!trimmed) return trimmed;
 
-const assetCodeSchema = z
-  .string()
-  .regex(
-    /^[A-Za-z0-9]{1,12}$/,
-    "Must be an alphanumeric asset code of up to 12 characters",
-  );
+  const parts = trimmed.split(".");
+  // Strip leading zeros from integer part, but keep at least one digit
+  const intPart = parts[0].replace(/^0+/, "") || "0";
+  const decPart = parts.length > 1 ? "." + parts.slice(1).join(".") : "";
+  return intPart + decPart;
+};
 
-const decimalAmountSchema = z
-  .string()
-  .regex(/^\d+(\.\d+)?$/, "Must be a non-negative decimal amount as a string")
-  .refine((value) => Number.parseFloat(value) > 0, {
-    message: "Must be greater than zero",
-  });
-
-export const createPaymentQuoteSchema = z.object({
-  fromWalletId: z.string().min(1).max(128),
-  toAddress: stellarAccountIdSchema,
+export const quoteSchema = z.object({
   amount: z
-    .object({
-      assetCode: assetCodeSchema,
-      assetIssuer: stellarAccountIdSchema.optional(),
-      amount: decimalAmountSchema,
-    })
-    .strict(),
+    .string()
+    .min(1)
+    .transform(normalizeAmount),
+  currency: z.string().min(3).max(3).default("USD"),
 });
 
-export type CreatePaymentQuoteSchema = z.infer<typeof createPaymentQuoteSchema>;
+export type QuoteInput = z.input<typeof quoteSchema>;
+export type QuoteOutput = z.output<typeof quoteSchema>;
