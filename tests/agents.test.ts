@@ -1,8 +1,8 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createApp } from "../src/app";
-import { agentsService } from "../src/modules/agents/agents.service";
+import { createApp } from "@/app";
+import { agentsService } from "@/modules/agents/agents.service";
 
 describe("agent endpoints", () => {
   const app = createApp();
@@ -73,6 +73,7 @@ describe("agent endpoints", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
     expect(response.body.message).toBe("Request validation failed");
     expect(response.body.details.fieldErrors).toMatchObject({
       name: [expect.any(String)],
@@ -80,4 +81,63 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  it("pauses an existing agent", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.id).toBe("agentlily_demo_001");
+    expect(response.body.data.agent.status).toBe("paused");
+  });
+
+  it("resumes the same agent", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
+
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.status).toBe("active");
+  });
+
+  it("rejects invalid status with 400", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "disabled" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBe("Request validation failed");
+  });
+
+  it("returns 404 for unknown agent ID", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/does-not-exist")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+  });
+
+  it("persists status change in the list endpoint", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    const response = await request(app).get("/api/v1/agents");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.agents[0]).toMatchObject({
+      id: "agentlily_demo_001",
+      status: "paused",
+    });
+  });
 });
+
