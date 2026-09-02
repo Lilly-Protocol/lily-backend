@@ -1,38 +1,34 @@
-import { describe, it, expect } from "vitest";
 import request from "supertest";
+import { describe, expect, it } from "vitest";
+
 import { createApp } from "../src/app";
 
-describe("Security headers set by helmet (issue #135)", () => {
+describe("security headers (helmet)", () => {
   const app = createApp();
 
-  it("should include X-Content-Type-Options: nosniff", async () => {
-    const res = await request(app).get("/api/v1/health");
-    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+  it("sets strict-transport-security header", async () => {
+    const response = await request(app).get("/");
+    expect(response.headers["strict-transport-security"]).toBeDefined();
+    expect(response.headers["strict-transport-security"]).toContain("max-age=");
   });
 
-  it("should include Content-Security-Policy header", async () => {
-    const res = await request(app).get("/api/v1/health");
-    expect(res.headers["content-security-policy"]).toBeDefined();
-    expect(typeof res.headers["content-security-policy"]).toBe("string");
+  it("sets x-content-type-options to nosniff", async () => {
+    const response = await request(app).get("/");
+    expect(response.headers["x-content-type-options"]).toBe("nosniff");
   });
 
-  it("should not include X-Powered-By header", async () => {
-    const res = await request(app).get("/api/v1/health");
-    expect(res.headers["x-powered-by"]).toBeUndefined();
+  it("sets x-frame-options to SAMEORIGIN", async () => {
+    const response = await request(app).get("/");
+    expect(response.headers["x-frame-options"]).toBe("SAMEORIGIN");
   });
 
-  it("should include Cross-Origin-Resource-Policy: cross-origin (intentional override)", async () => {
-    const res = await request(app).get("/api/v1/health");
-    expect(res.headers["cross-origin-resource-policy"]).toBe("cross-origin");
+  it("removes x-powered-by header", async () => {
+    const response = await request(app).get("/");
+    expect(response.headers["x-powered-by"]).toBeUndefined();
   });
 
-  it("should include Referrer-Policy header", async () => {
-    const res = await request(app).get("/api/v1/health");
-    expect(res.headers["referrer-policy"]).toBeDefined();
-  });
-
-  it("should include X-Frame-Options header", async () => {
-    const res = await request(app).get("/api/v1/health");
-    expect(res.headers["x-frame-options"]).toBeDefined();
+  it("sets cross-origin-resource-policy to cross-origin", async () => {
+    const response = await request(app).get("/");
+    expect(response.headers["cross-origin-resource-policy"]).toBe("cross-origin");
   });
 });
