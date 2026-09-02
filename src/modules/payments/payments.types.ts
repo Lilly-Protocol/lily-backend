@@ -1,20 +1,50 @@
-export interface PaymentQuoteInput {
-  fromWalletId: string;
-  toAddress: string;
-  amount: string;
-  assetCode: string;
-}
+export type QuoteStatus = "active" | "expired" | "executed";
 
-export interface PaymentQuote {
+export interface Quote {
   id: string;
-  fromWalletId: string;
-  toAddress: string;
-  amount: string;
-  assetCode: string;
-  estimatedFee: string;
+  sourceAsset: string;
+  destinationAsset: string;
+  sourceAmount: string;
+  destinationAmount: string;
+  fee: string;
+  rate: string;
   expiresAt: string;
+  createdAt: string;
+  status: QuoteStatus;
 }
 
-export interface PaymentQuoteResponse {
-  quote: PaymentQuote;
+export interface PaymentRecord {
+  id: string;
+  quoteId: string;
+  sourceAsset: string;
+  destinationAsset: string;
+  sourceAmount: string;
+  destinationAmount: string;
+  fee: string;
+  rate: string;
+  status: "settled";
+  createdAt: string;
+}
+
+export interface CreateQuoteInput {
+  sourceAsset: string;
+  destinationAsset: string;
+  sourceAmount: string;
+}
+
+export interface CreateQuoteResponse {
+  quote: Quote;
+}
+
+export interface GetQuoteResponse {
+  quote: Quote;
+}
+
+export interface ExecutePaymentInput {
+  quoteId: string;
+  confirmed: boolean;
+}
+
+export interface ExecutePaymentResponse {
+  payment: PaymentRecord;
 }

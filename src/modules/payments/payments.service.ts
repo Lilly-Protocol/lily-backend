@@ -1,39 +1,127 @@
-import { randomUUID } from "node:crypto";
-
+import { AppError } from "../../common/http/app-error";
 import type {
-  PaymentQuote,
-  PaymentQuoteInput,
-  PaymentQuoteResponse,
+  CreateQuoteInput,
+  CreateQuoteResponse,
+  ExecutePaymentInput,
+  ExecutePaymentResponse,
+  GetQuoteResponse,
+  PaymentRecord,
+  Quote,
 } from "./payments.types";
 
-const QUOTE_TTL_MS = 60_000;
-const STUB_FEE_PERCENT = 1;
+const QUOTE_TTL_MS = 5 * 60 * 1000;
 
-// Stub fee calculator: amount * STUB_FEE_PERCENT / 100 using integer math so
-// decimal-string amounts stay exact until a real quoting provider is wired in.
-export const applyStubFee = (amount: string): string => {
-  const [whole = "0", fraction = ""] = amount.split(".");
-  const digits = whole + fraction;
-  const scale = fraction.length + 2;
-  const scaled = (BigInt(digits) * BigInt(STUB_FEE_PERCENT)).toString();
-  const padded = scaled.padStart(scale + 1, "0");
-  const wholePart = padded.slice(0, -scale) || "0";
-  const fractionalPart = padded.slice(-scale).replace(/0+$/, "");
-  return fractionalPart ? `${wholePart}.${fractionalPart}` : wholePart;
+const quotesStore = new Map<string, Quote>();
+const paymentsStore: PaymentRecord[] = [];
+
+const generateQuoteId = (): string => {
+  return `quote_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const generatePaymentId = (): string => {
+  return `pay_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const computeDestinationAmount = (sourceAmount: string): string => {
+  const amount = parseFloat(sourceAmount);
+  if (Number.isNaN(amount)) return "0";
+  const rate = "1.0002";
+  const dest = amount * parseFloat(rate);
+  return dest.toFixed(6);
+};
+
+const computeFee = (sourceAmount: string): string => {
+  const amount = parseFloat(sourceAmount);
+  if (Number.isNaN(amount)) return "0";
+  const fee = amount * 0.001;
+  return fee.toFixed(6);
+};
+
+const refreshExpiry = (quote: Quote): void => {
+  if (Date.now() >= new Date(quote.expiresAt).getTime()) {
+    quote.status = "expired";
+  }
 };
 
 export const paymentsService = {
-  getQuote(input: PaymentQuoteInput): PaymentQuoteResponse {
-    const quote: PaymentQuote = {
-      id: `quote_lily_${randomUUID()}`,
-      fromWalletId: input.fromWalletId,
-      toAddress: input.toAddress,
-      amount: input.amount,
-      assetCode: input.assetCode,
-      estimatedFee: applyStubFee(input.amount),
-      expiresAt: new Date(Date.now() + QUOTE_TTL_MS).toISOString(),
+  createQuote(input: CreateQuoteInput): CreateQuoteResponse {
+    const now = new Date();
+    const quote: Quote = {
+      id: generateQuoteId(),
+      sourceAsset: input.sourceAsset,
+      destinationAsset: input.destinationAsset,
+      sourceAmount: input.sourceAmount,
+      destinationAmount: computeDestinationAmount(input.sourceAmount),
+      fee: computeFee(input.sourceAmount),
+      rate: "1.0002",
+      expiresAt: new Date(now.getTime() + QUOTE_TTL_MS).toISOString(),
+      createdAt: now.toISOString(),
+      status: "active",
     };
 
+    quotesStore.set(quote.id, quote);
+
     return { quote };
+  },
+
+  getQuoteById(id: string): GetQuoteResponse {
+    const quote = quotesStore.get(id);
+
+    if (!quote) {
+      throw new AppError(404, "Quote not found");
+    }
+
+    refreshExpiry(quote);
+
+    if (quote.status === "expired") {
+      throw new AppError(410, "Quote has expired");
+    }
+
+    return { quote };
+  },
+
+  executePayment(input: ExecutePaymentInput): ExecutePaymentResponse {
+    const quote = quotesStore.get(input.quoteId);
+
+    if (!quote) {
+      throw new AppError(404, "Quote not found");
+    }
+
+    refreshExpiry(quote);
+
+    if (quote.status === "expired") {
+      throw new AppError(410, "Quote has expired");
+    }
+
+    if (quote.status === "executed") {
+      throw new AppError(409, "Quote has already been executed");
+    }
+
+    if (!input.confirmed) {
+      throw new AppError(400, "Payment must be confirmed");
+    }
+
+    const payment: PaymentRecord = {
+      id: generatePaymentId(),
+      quoteId: quote.id,
+      sourceAsset: quote.sourceAsset,
+      destinationAsset: quote.destinationAsset,
+      sourceAmount: quote.sourceAmount,
+      destinationAmount: quote.destinationAmount,
+      fee: quote.fee,
+      rate: quote.rate,
+      status: "settled",
+      createdAt: new Date().toISOString(),
+    };
+
+    paymentsStore.push(payment);
+    quote.status = "executed";
+
+    return { payment };
+  },
+
+  reset(): void {
+    quotesStore.clear();
+    paymentsStore.splice(0, paymentsStore.length);
   },
 };
