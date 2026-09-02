@@ -1,43 +1,28 @@
 import { z } from "zod";
-import { StrKey } from "@stellar/stellar-sdk";
-
-export const stellarAddressSchema = z
-  .string()
-  .trim()
-  .length(56, "Stellar address must be exactly 56 characters")
-  .refine(
-    (val) => {
-      try {
-        return StrKey.isValidEd25519PublicKey(val);
-      } catch {
-        return false;
-      }
-    },
-    {
-      message: "Invalid Stellar address checksum or format",
-    }
-  );
 
 /**
- * Validates a Stellar asset code.
- * Native XLM and issued assets (1-12 alphanumeric characters).
+ * Normalizes a decimal amount string by stripping leading zeros
+ * while preserving the canonical decimal form.
+ * "007.00" -> "7.00", "0.50" -> "0.50", "100.00" -> "100.00"
  */
-export const stellarAssetCodeSchema = z
-  .string()
-  .trim()
-  .regex(/^[A-Za-z0-9]{1,12}$/, "Asset code must be 1-12 alphanumeric characters")
-  .toUpperCase();
+export const normalizeAmount = (val: string): string => {
+  const trimmed = val.trim();
+  if (!trimmed) return trimmed;
 
-export const createPaymentQuoteSchema = z.object({
-  fromWalletId: z.string().trim().min(1).max(120),
-  toAddress: stellarAddressSchema,
+  const parts = trimmed.split(".");
+  // Strip leading zeros from integer part, but keep at least one digit
+  const intPart = parts[0].replace(/^0+/, "") || "0";
+  const decPart = parts.length > 1 ? "." + parts.slice(1).join(".") : "";
+  return intPart + decPart;
+};
+
+export const quoteSchema = z.object({
   amount: z
     .string()
-    .trim()
-    .regex(/^\d+(\.\d{1,7})?$/, "Amount must be a positive decimal string"),
-  assetCode: stellarAssetCodeSchema,
+    .min(1)
+    .transform(normalizeAmount),
+  currency: z.string().min(3).max(3).default("USD"),
 });
 
-export type CreatePaymentQuoteSchema = z.infer<
-  typeof createPaymentQuoteSchema
->;
+export type QuoteInput = z.input<typeof quoteSchema>;
+export type QuoteOutput = z.output<typeof quoteSchema>;

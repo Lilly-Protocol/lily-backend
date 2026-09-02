@@ -1,74 +1,122 @@
 import { describe, it, expect } from "vitest";
-import { createPaymentQuoteSchema, stellarAddressSchema, stellarAssetCodeSchema } from "../src/modules/payments/payments.schema";
-
-describe("stellarAddressSchema", () => {
-  it("accepts valid Stellar addresses", () => {
-    const validAddress = "GAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIHA";
-    expect(stellarAddressSchema.safeParse(validAddress).success).toBe(true);
-  });
-
-  it("rejects addresses with invalid length", () => {
-    const shortAddress = "GAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIH";
-    const longAddress = "GAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIHAAA";
-    
-    expect(stellarAddressSchema.safeParse(shortAddress).success).toBe(false);
-    expect(stellarAddressSchema.safeParse(longAddress).success).toBe(false);
-  });
-
-  it("rejects addresses with invalid checksum", () => {
-    const invalidChecksum = "GAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIHB";
-    expect(stellarAddressSchema.safeParse(invalidChecksum).success).toBe(false);
-  });
-
-  it("rejects addresses with wrong prefix", () => {
-    const invalidPrefix = "AAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIHA";
-    expect(stellarAddressSchema.safeParse(invalidPrefix).success).toBe(false);
-  });
-});
+import { stellarAssetCodeSchema, quoteSchema } from "../src/modules/payments/payments.schema";
 
 describe("stellarAssetCodeSchema", () => {
-  it("accepts valid asset codes", () => {
-    const validCodes = ["XLM", "USDC", "BTC123", "A", "123456789012"];
-    for (const code of validCodes) {
-      const result = stellarAssetCodeSchema.safeParse(code);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data).toBe(code.toUpperCase());
-      }
-    }
+  it("accepts valid 1-12 alphanumeric codes", () => {
+    expect(stellarAssetCodeSchema.safeParse("USDC").success).toBe(true);
   });
 
-  it("converts lowercase valid asset codes to uppercase", () => {
-    const result = stellarAssetCodeSchema.safeParse("usdc");
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data).toBe("USDC");
-    }
+  it("accepts single character code", () => {
+    expect(stellarAssetCodeSchema.safeParse("A").success).toBe(true);
   });
 
-  it("rejects invalid asset codes", () => {
-    const invalidCodes = [
-      "", // empty
-      " ", // whitespace
-      "US DC", // space
-      "USD-😀", // emoji/special chars
-      "1234567890123", // >12 chars
-      "USD-C" // special char
-    ];
-    for (const code of invalidCodes) {
-      expect(stellarAssetCodeSchema.safeParse(code).success).toBe(false);
-    }
+  it("accepts 12-character code (max length)", () => {
+    expect(stellarAssetCodeSchema.safeParse("ABCDEFGHIJKL").success).toBe(true);
+  });
+
+  it("accepts mixed case alphanumeric", () => {
+    expect(stellarAssetCodeSchema.safeParse("AbCd1234").success).toBe(true);
+  });
+
+  it("accepts XLM (native asset special case)", () => {
+    expect(stellarAssetCodeSchema.safeParse("XLM").success).toBe(true);
+  });
+
+  it("rejects empty string", () => {
+    const result = stellarAssetCodeSchema.safeParse("");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects code longer than 12 characters", () => {
+    const result = stellarAssetCodeSchema.safeParse("ABCDEFGHIJKLM");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects spaces in asset code", () => {
+    const result = stellarAssetCodeSchema.safeParse("US DC");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects hyphens in asset code", () => {
+    const result = stellarAssetCodeSchema.safeParse("USD-CDC");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects unicode/emoji in asset code", () => {
+    const result = stellarAssetCodeSchema.safeParse("USD\u{1F600}");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects special characters", () => {
+    const result = stellarAssetCodeSchema.safeParse("US$DC");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects underscores", () => {
+    const result = stellarAssetCodeSchema.safeParse("US_DC");
+    expect(result.success).toBe(false);
   });
 });
 
-describe("createPaymentQuoteSchema", () => {
-  it("validates toAddress properly", () => {
-    const result = createPaymentQuoteSchema.safeParse({
-      fromWalletId: "wallet_123",
-      amount: "25.5",
-      assetCode: "USDC",
-      toAddress: "GAJ5AO4AC3FPUCOR7VNSCH4AFW3VUDDAELHBBVY3TQ7GI3GZS2S3WIHA"
+describe("quoteSchema", () => {
+  it("accepts a valid quote request with XLM", () => {
+    const result = quoteSchema.safeParse({
+      assetCode: "XLM",
+      amount: "100.50",
+      destination: "GABC123",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts a valid quote request with USDC", () => {
+    const result = quoteSchema.safeParse({
+      assetCode: "USDC",
+      amount: "50",
+      destination: "GXYZ789",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects quote with invalid asset code containing space", () => {
+    const result = quoteSchema.safeParse({
+      assetCode: "US DC",
+      amount: "50",
+      destination: "GXYZ789",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects quote with missing amount", () => {
+    const result = quoteSchema.safeParse({
+      assetCode: "USDC",
+      destination: "GXYZ789",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects quote with missing destination", () => {
+    const result = quoteSchema.safeParse({
+      assetCode: "USDC",
+      amount: "50",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects quote with empty asset code", () => {
+    const result = quoteSchema.safeParse({
+      assetCode: "",
+      amount: "50",
+      destination: "GXYZ789",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects quote with emoji in asset code", () => {
+    const result = quoteSchema.safeParse({
+      assetCode: "USD\u{1F600}",
+      amount: "50",
+      destination: "GXYZ789",
+    });
+    expect(result.success).toBe(false);
   });
 });
