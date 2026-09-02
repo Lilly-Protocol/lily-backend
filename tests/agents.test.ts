@@ -80,4 +80,46 @@ describe("agent endpoints", () => {
       capabilities: [expect.any(String)],
     });
   });
+
+  it("generates deterministic ids across service resets", async () => {
+    // Note: createAgent derives ids as `agentlily_${agentsStore.length + 1}`.
+    // Because reset() restores the seed, the first created agent after each
+    // reset is expected to be `agentlily_2` (1 seeded agent + 1).
+
+    // First cycle: create two agents.
+    const firstCycle = await Promise.all([
+      request(app).post("/api/v1/agents").send({
+        name: "First Cycle Agent One",
+        description: "First cycle agent one for deterministic id test.",
+        capabilities: ["capability-a"],
+      }),
+      request(app).post("/api/v1/agents").send({
+        name: "First Cycle Agent Two",
+        description: "First cycle agent two for deterministic id test.",
+        capabilities: ["capability-b"],
+      }),
+    ]);
+
+    expect(firstCycle[0].body.data.agent.id).toBe("agentlily_2");
+    expect(firstCycle[1].body.data.agent.id).toBe("agentlily_3");
+
+    // Reset the store and create two agents again.
+    agentsService.reset();
+
+    const secondCycle = await Promise.all([
+      request(app).post("/api/v1/agents").send({
+        name: "Second Cycle Agent One",
+        description: "Second cycle agent one for deterministic id test.",
+        capabilities: ["capability-c"],
+      }),
+      request(app).post("/api/v1/agents").send({
+        name: "Second Cycle Agent Two",
+        description: "Second cycle agent two for deterministic id test.",
+        capabilities: ["capability-d"],
+      }),
+    ]);
+
+    expect(secondCycle[0].body.data.agent.id).toBe("agentlily_2");
+    expect(secondCycle[1].body.data.agent.id).toBe("agentlily_3");
+  });
 });
