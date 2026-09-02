@@ -1,56 +1,52 @@
-import type { NextFunction, Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 
-interface CachedResponse {
-  status: number;
-  body: unknown;
-  expiresAt: number;
+interface IdempotencyEntry {
+  response: unknown;
+  statusCode: number;
+  createdAt: number;
 }
 
-const store = new Map<string, CachedResponse>();
+const store = new Map<string, IdempotencyEntry>();
+const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-const TTL_MS = 24 * 60 * 60 * 1000;
-
-export const clearIdempotencyStore = (): void => {
-  store.clear();
-};
-
-export const idempotencyMiddleware = (
-  request: Request,
-  response: Response,
+export const idempotencyKeyMiddleware = (
+  req: Request,
+  res: Response,
   next: NextFunction,
 ): void => {
-  const key = request.headers["idempotency-key"] as string | undefined;
+  if (req.method !== "POST") {
+    next();
+    return;
+  }
 
-  if (!key) {
+  const key = req.headers["idempotency-key"];
+  if (!key || typeof key !== "string" || key.length === 0) {
     next();
     return;
   }
 
   const now = Date.now();
-  const cached = store.get(key);
+  const existing = store.get(key);
 
-  if (cached && cached.expiresAt > now) {
-    response.status(cached.status).json(cached.body);
+  if (existing && now - existing.createdAt < TTL_MS) {
+    res.status(existing.statusCode).json(existing.response);
     return;
   }
 
-  if (cached && cached.expiresAt <= now) {
-    store.delete(key);
-  }
-
-  const originalJson = response.json.bind(response);
-
-  response.json = (body: unknown): Response => {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      store.set(key, {
-        status: response.statusCode,
-        body,
-        expiresAt: now + TTL_MS,
-      });
-    }
-
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    store.set(key, {
+      response: body,
+      statusCode: res.statusCode,
+      createdAt: Date.now(),
+    });
     return originalJson(body);
-  };
+  }) as typeof res.json;
 
   next();
+};
+
+// Exposed for testing
+export const _resetIdempotencyStore = (): void => {
+  store.clear();
 };
