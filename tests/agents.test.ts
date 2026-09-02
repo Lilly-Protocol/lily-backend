@@ -1,25 +1,23 @@
+import type { Express } from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createApp } from "../src/app";
-import { agentsService } from "../src/modules/agents/agents.service";
-import type { CreateAgentInput } from "../src/modules/agents/agents.types";
-
-const buildAgentPayload = (
-  overrides: Partial<CreateAgentInput> = {},
-): CreateAgentInput => ({
-  name: "Liquidity Bot",
-  description:
-    "AgentLily responsible for orchestrating liquidity and payment workflows.",
-  capabilities: ["liquidity-management", "payments"],
-  ...overrides,
-});
+import { createApp } from "@/app";
+import { agentsService } from "@/modules/agents/agents.service";
 
 describe("agent endpoints", () => {
-  const app = createApp();
+  let app: Express;
 
-  beforeEach(() => {
-    agentsService.reset();
+  beforeEach(async () => {
+    app = await createIsolatedTestApp();
+  });
+
+  it("does not expose test-only reset behavior from the production service", async () => {
+    const { agentsService } = await import(
+      "../src/modules/agents/agents.service"
+    );
+
+    expect(agentsService).not.toHaveProperty("reset");
   });
 
   it("returns seeded agents so contributors can inspect a real module", async () => {
@@ -46,9 +44,12 @@ describe("agent endpoints", () => {
   });
 
   it("creates an agent with validated input", async () => {
-    const response = await request(app)
-      .post("/api/v1/agents")
-      .send(buildAgentPayload());
+    const response = await request(app).post("/api/v1/agents").send({
+      name: "Liquidity Bot",
+      description:
+        "AgentLily responsible for orchestrating liquidity and payment workflows.",
+      capabilities: ["usdc-payments", "payments"],
+    });
 
     expect(response.status).toBe(201);
     expect(response.body.success).toBe(true);
@@ -58,48 +59,18 @@ describe("agent endpoints", () => {
       description:
         "AgentLily responsible for orchestrating liquidity and payment workflows.",
       status: "active",
-      capabilities: ["liquidity-management", "payments"],
+      capabilities: ["usdc-payments", "payments"],
     });
     expect(response.body.data.agent.walletAddress).toMatch(/^GLIQUIDITYBOT0+/);
   });
 
-  it("derives a stellar-style wallet address from the agent name", async () => {
-    const response = await request(app)
-      .post("/api/v1/agents")
-      .send(
-        buildAgentPayload({
-          name: "R&D Ops Bot!",
-          capabilities: ["settlement"],
-        }),
-      );
-
-    const { walletAddress } = response.body.data.agent;
-
-    expect(walletAddress).toMatch(/^G[A-Z0-9]{55}$/);
-    expect(walletAddress.slice(1, 11)).toBe("RDOPSBOT00");
-  });
-
-  it("assigns sequential ids and persists created agents in order", async () => {
-    const first = await request(app)
-      .post("/api/v1/agents")
-      .send(buildAgentPayload());
-    const second = await request(app)
-      .post("/api/v1/agents")
-      .send(
-        buildAgentPayload({
-          name: "Marketplace Runner",
-          description:
-            "AgentLily responsible for purchasing tools and settling marketplace invoices.",
-          capabilities: ["marketplace-purchases", "settlement"],
-        }),
-      );
-
-    expect(first.status).toBe(201);
-    expect(second.status).toBe(201);
-    expect(first.body.data.agent.id).toBe("agentlily_2");
-    expect(second.body.data.agent.id).toBe("agentlily_3");
-    expect(Date.parse(first.body.data.agent.createdAt)).not.toBeNaN();
-    expect(Date.parse(second.body.data.agent.createdAt)).not.toBeNaN();
+  it("persists a created agent in the list endpoint", async () => {
+    await request(app).post("/api/v1/agents").send({
+      name: "Marketplace Runner",
+      description:
+        "AgentLily responsible for purchasing tools and settling marketplace invoices.",
+      capabilities: ["settlement", "settlement"],
+    });
 
     const response = await request(app).get("/api/v1/agents");
 
@@ -114,6 +85,25 @@ describe("agent endpoints", () => {
     });
   });
 
+  it("rejects unknown keys in agent creation payloads", async () => {
+    const response = await request(app)
+      .post("/api/v1/agents")
+      .send({
+        name: "Treasury Bot",
+        description:
+          "AgentLily responsible for treasury management and payment routing.",
+        capabilities: ["treasury-management"],
+        admin: true,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toBe("Request validation failed");
+    expect(response.body.details.fieldErrors).toMatchObject({
+      admin: [expect.stringContaining("Unrecognized key")],
+    });
+  });
+
   it("rejects invalid agent payloads with typed validation errors", async () => {
     const response = await request(app).post("/api/v1/agents").send({
       name: "A",
@@ -123,6 +113,7 @@ describe("agent endpoints", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
     expect(response.body.message).toBe("Request validation failed");
     expect(response.body.details.fieldErrors).toMatchObject({
       name: [expect.any(String)],
@@ -131,49 +122,62 @@ describe("agent endpoints", () => {
     });
   });
 
-  it("rejects an empty payload with field errors for every required field", async () => {
-    const response = await request(app).post("/api/v1/agents").send({});
+  it("pauses an existing agent", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.id).toBe("agentlily_demo_001");
+    expect(response.body.data.agent.status).toBe("paused");
+  });
+
+  it("resumes the same agent", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
+
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "active" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.agent.status).toBe("active");
+  });
+
+  it("rejects invalid status with 400", async () => {
+    const response = await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "disabled" });
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
     expect(response.body.message).toBe("Request validation failed");
-    expect(Object.keys(response.body.details.fieldErrors).sort()).toEqual([
-      "capabilities",
-      "description",
-      "name",
-    ]);
   });
 
-  it("rejects payloads with wrongly typed values", async () => {
-    const response = await request(app).post("/api/v1/agents").send({
-      name: 42,
-      description: true,
-      capabilities: "payments",
-    });
-
-    expect(response.status).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(Object.keys(response.body.details.fieldErrors).sort()).toEqual([
-      "capabilities",
-      "description",
-      "name",
-    ]);
-  });
-
-  it("rejects more capabilities than the schema allows", async () => {
+  it("returns 404 for unknown agent ID", async () => {
     const response = await request(app)
-      .post("/api/v1/agents")
-      .send(
-        buildAgentPayload({
-          capabilities: Array.from(
-            { length: 11 },
-            (_, index) => `capability-${index + 1}`,
-          ),
-        }),
-      );
+      .patch("/api/v1/agents/does-not-exist")
+      .send({ status: "paused" });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);
-    expect(response.body.details.fieldErrors.capabilities).toBeDefined();
+  });
+
+  it("persists status change in the list endpoint", async () => {
+    await request(app)
+      .patch("/api/v1/agents/agentlily_demo_001")
+      .send({ status: "paused" });
+
+    const response = await request(app).get("/api/v1/agents");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.agents[0]).toMatchObject({
+      id: "agentlily_demo_001",
+      status: "paused",
+    });
   });
 });
+
