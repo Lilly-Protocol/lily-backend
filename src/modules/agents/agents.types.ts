@@ -24,3 +24,7 @@ export interface ListAgentsResponse {
 export interface CreateAgentResponse {
   agent: Agent;
 }
+
+export interface UpdateAgentStatusResponse {
+  agent: Agent;
+}
