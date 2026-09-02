@@ -21,14 +21,9 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test",
-  handler: rateLimitHandler,
-});
-
-export const writeRateLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: () => process.env.NODE_ENV === "test",
-  handler: rateLimitHandler,
+  message: {
+    success: false,
+    code: "RATE_LIMITED",
+    message: "Too many requests, please try again later.",
+  },
 });
