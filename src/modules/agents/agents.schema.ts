@@ -21,8 +21,8 @@ export const createAgentSchema = z.object({
 
 export type CreateAgentSchema = z.infer<typeof createAgentSchema>;
 
-export const updateAgentSchema = z.object({
-  status: z.enum(["active", "paused"]).optional(),
+export const agentStatusSchema = z.object({
+  status: z.enum(["active", "paused"]),
 });
 
-export type UpdateAgentSchema = z.infer<typeof updateAgentSchema>;
+export type AgentStatusSchema = z.infer<typeof agentStatusSchema>;
