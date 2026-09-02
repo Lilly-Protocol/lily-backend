@@ -1,23 +1,28 @@
 import { z } from "zod";
 
-const stellarAccountPattern = /^G[A-Z0-9]{55}$/;
-const amountPattern = /^\d+(\.\d{1,7})?$/;
-const assetCodePattern = /^[A-Za-z0-9]{1,12}$/;
+/**
+ * Normalizes a decimal amount string by stripping leading zeros
+ * while preserving the canonical decimal form.
+ * "007.00" -> "7.00", "0.50" -> "0.50", "100.00" -> "100.00"
+ */
+export const normalizeAmount = (val: string): string => {
+  const trimmed = val.trim();
+  if (!trimmed) return trimmed;
 
-export const createQuoteSchema = z.object({
-  fromWalletId: z.string().min(3).max(80),
-  toAddress: z
-    .string()
-    .regex(stellarAccountPattern, "toAddress must be a valid Stellar account address"),
+  const parts = trimmed.split(".");
+  // Strip leading zeros from integer part, but keep at least one digit
+  const intPart = parts[0].replace(/^0+/, "") || "0";
+  const decPart = parts.length > 1 ? "." + parts.slice(1).join(".") : "";
+  return intPart + decPart;
+};
+
+export const quoteSchema = z.object({
   amount: z
     .string()
-    .regex(amountPattern, "amount must be a positive decimal string with at most 7 decimal places")
-    .refine((value) => Number.parseFloat(value) > 0, {
-      message: "amount must be greater than zero",
-    }),
-  assetCode: z
-    .string()
-    .regex(assetCodePattern, "assetCode must be 1-12 alphanumeric characters"),
+    .min(1)
+    .transform(normalizeAmount),
+  currency: z.string().min(3).max(3).default("USD"),
 });
 
-export type CreateQuoteSchema = z.infer<typeof createQuoteSchema>;
+export type QuoteInput = z.input<typeof quoteSchema>;
+export type QuoteOutput = z.output<typeof quoteSchema>;
