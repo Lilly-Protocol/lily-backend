@@ -1,29 +1,28 @@
 import { z } from "zod";
 
 /**
- * Stellar asset codes:
- * - Native asset (XLM) is represented as "XLM" (special case)
- * - Credit assets use 1-12 alphanumeric characters (A-Z, a-z, 0-9)
- * - No spaces, hyphens, or unicode allowed
- *
- * @see https://developers.stellar.org/docs/issuing-assets/how-to-issue-an-asset
+ * Normalizes a decimal amount string by stripping leading zeros
+ * while preserving the canonical decimal form.
+ * "007.00" -> "7.00", "0.50" -> "0.50", "100.00" -> "100.00"
  */
-export const stellarAssetCodeSchema = z
-  .string()
-  .min(1, "Asset code must be at least 1 character")
-  .max(12, "Asset code must be at most 12 characters")
-  .regex(/^[A-Za-z0-9]{1,12}$/, "Asset code must be alphanumeric (A-Z, a-z, 0-9) only — no spaces, hyphens, or special characters");
+export const normalizeAmount = (val: string): string => {
+  const trimmed = val.trim();
+  if (!trimmed) return trimmed;
 
-/**
- * Quote request schema for payments.
- * Validates that assetCode conforms to Stellar rules.
- * Native XLM is documented as the special case for the native asset.
- */
+  const parts = trimmed.split(".");
+  // Strip leading zeros from integer part, but keep at least one digit
+  const intPart = parts[0].replace(/^0+/, "") || "0";
+  const decPart = parts.length > 1 ? "." + parts.slice(1).join(".") : "";
+  return intPart + decPart;
+};
+
 export const quoteSchema = z.object({
-  assetCode: stellarAssetCodeSchema,
-  amount: z.string().min(1, "Amount is required"),
-  destination: z.string().min(1, "Destination is required"),
+  amount: z
+    .string()
+    .min(1)
+    .transform(normalizeAmount),
+  currency: z.string().min(3).max(3).default("USD"),
 });
 
-export type QuoteSchema = z.infer<typeof quoteSchema>;
-export type StellarAssetCode = z.infer<typeof stellarAssetCodeSchema>;
+export type QuoteInput = z.input<typeof quoteSchema>;
+export type QuoteOutput = z.output<typeof quoteSchema>;
