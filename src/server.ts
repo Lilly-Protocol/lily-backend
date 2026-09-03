@@ -8,11 +8,33 @@ import { logger } from "./config/logger";
 const app = createApp();
 const server = createServer(app);
 
-server.listen(env.PORT, () => {
+server.on("error", (error) => {
+  if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
+    logger.fatal(
+      { code: "EADDRINUSE", host: env.HOST, port: env.PORT },
+      `Port ${env.PORT} is already in use on ${env.HOST}`,
+    );
+  } else {
+    logger.fatal(
+      {
+        err: error,
+        code: (error as NodeJS.ErrnoException).code,
+        host: env.HOST,
+        port: env.PORT,
+      },
+      "Failed to start HTTP server",
+    );
+  }
+  process.exit(1);
+});
+
+server.listen(env.PORT, env.HOST, () => {
   logger.info(
     {
       appName: env.APP_NAME,
       environment: env.NODE_ENV,
+      host: env.HOST,
+      port: env.PORT,
       ...buildInfo,
     },
     "Lily backend server started with resolved configuration",
