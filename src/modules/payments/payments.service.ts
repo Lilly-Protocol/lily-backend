@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { AppError } from "../../common/http/app-error";
 import type {
   CreateQuoteInput,
@@ -14,12 +16,12 @@ const QUOTE_TTL_MS = 5 * 60 * 1000;
 const quotesStore = new Map<string, Quote>();
 const paymentsStore: PaymentRecord[] = [];
 
-const generateQuoteId = (): string => {
-  return `quote_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+export const generateQuoteId = (): string => {
+  return `quote_${randomUUID()}`;
 };
 
-const generatePaymentId = (): string => {
-  return `pay_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+export const generatePaymentId = (): string => {
+  return `pay_${randomUUID()}`;
 };
 
 /**
