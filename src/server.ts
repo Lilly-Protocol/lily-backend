@@ -19,6 +19,14 @@ server.listen(env.PORT, () => {
   );
 });
 
+server.on("error", (error: NodeJS.ErrnoException) => {
+  logger.fatal(
+    { err: error, port: env.PORT, code: error.code },
+    `Server failed to bind: ${error.message}`,
+  );
+  process.exit(1);
+});
+
 let isShuttingDown = false;
 
 const shutdown = (signal: string) => {
