@@ -46,11 +46,17 @@ const redactUrl = (url: string): string => {
   }
 };
 
-const serializeRequestLog = (request: IncomingMessage & { id?: unknown }) => ({
+const serializeRequestLog = (
+  request: IncomingMessage & {
+    id?: unknown;
+    raw?: { ip?: string };
+    ip?: string;
+  },
+) => ({
   id: request.id,
   method: request.method,
   url: redactUrl(request.url ?? ""),
-  remoteAddress: request.socket?.remoteAddress,
+  remoteAddress: request.raw?.ip ?? request.ip ?? request.socket?.remoteAddress,
   remotePort: request.socket?.remotePort,
 });
 
