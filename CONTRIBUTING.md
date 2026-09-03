@@ -10,10 +10,17 @@ Thanks for considering a contribution to Lily Protocol.
 
 ## Quality checks
 
-Before opening a pull request, run:
+Before opening a pull request, run the full local CI check:
+
+```bash
+npm run check
+```
+
+This runs `lint`, `typecheck`, `build`, and `test` in the same order as CI. Alternatively, run individual steps:
 
 ```bash
 npm run lint
+npm run typecheck
 npm run build
 npm run test
 ```
