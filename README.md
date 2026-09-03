@@ -126,16 +126,13 @@ docker run --env-file .env -p 4000:4000 lily-backend
 
 ## Quality Standards
 
-Every contribution is expected to pass:
+Every contribution is expected to pass the full pipeline:
 
 ```bash
-npm run lint
-npm run typecheck
-npm run audit:prod
-npm run build
-npm run test:coverage
+npm run check
 ```
 
+`npm run check` mirrors the GitHub Actions CI workflow (`lint` → `typecheck` → `audit:prod` → `build` → `test:coverage`) and exits non-zero if any stage fails, so a green `npm run check` locally is a strong signal the CI run will pass.
 
 ## Contributing
 
