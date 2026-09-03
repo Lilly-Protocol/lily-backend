@@ -104,6 +104,47 @@ describe("Idempotency-Key middleware", () => {
       .expect(400);
   });
 
+  it("retries a failed request with a corrected payload under the same key", async () => {
+    const key = "key-retry-after-error";
+    const badPayload = {
+      name: "x",
+      description: "too short",
+      capabilities: [],
+    };
+    const validPayload = {
+      name: "Retry Agent",
+      description: "A valid agent after a failed first attempt",
+      capabilities: ["testing"],
+    };
+
+    await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", key)
+      .send(badPayload)
+      .expect(400);
+
+    const created = await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", key)
+      .send(validPayload)
+      .expect(201);
+
+    expect(created.body.success).toBe(true);
+    expect(created.body.data.agent.name).toBe("Retry Agent");
+
+    const replay = await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", key)
+      .send(validPayload)
+      .expect(201);
+
+    expect(replay.body).toEqual(created.body);
+    expect(replay.body.data.agent.id).toBe(created.body.data.agent.id);
+
+    const list = await request(app).get("/api/v1/agents").expect(200);
+    expect(list.body.data.total).toBe(2);
+  });
+
   it("ignores idempotency on GET requests (no caching)", async () => {
     await request(app)
       .get("/api/v1/agents")
