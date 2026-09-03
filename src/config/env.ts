@@ -22,6 +22,32 @@ export const trustProxySchema = z.preprocess(
   ]),
 );
 
+const RESERVED_AUTH_HEADERS = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "host",
+  "connection",
+  "content-length",
+  "content-type",
+]);
+
+const HTTP_HEADER_NAME_REGEX = /^[a-zA-Z0-9!#$%&'*+\-.^_`|~]+$/;
+
+export const authApiKeyHeaderSchema = z
+  .string()
+  .min(1, "AUTH_API_KEY_HEADER must not be empty")
+  .refine((val) => val.trim() === val && !/\s/.test(val), {
+    message: "AUTH_API_KEY_HEADER must not contain whitespace",
+  })
+  .refine((val) => HTTP_HEADER_NAME_REGEX.test(val), {
+    message: "AUTH_API_KEY_HEADER must be a valid HTTP header token name",
+  })
+  .refine((val) => !RESERVED_AUTH_HEADERS.has(val.toLowerCase()), {
+    message: "AUTH_API_KEY_HEADER conflicts with reserved HTTP header",
+  })
+  .default("x-api-key");
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -46,7 +72,7 @@ const envSchema = z.object({
     .default(15 * 60 * 1000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
   AUTH_API_KEY: z.string().optional(),
-  AUTH_API_KEY_HEADER: z.string().min(1).default("x-api-key"),
+  AUTH_API_KEY_HEADER: authApiKeyHeaderSchema,
   TRUST_PROXY: trustProxySchema,
 });
 
