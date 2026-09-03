@@ -16,10 +16,20 @@ export const normalizeAmount = (val: string): string => {
   return intPart + decPart;
 };
 
+/**
+ * Matches a valid positive decimal string: one or more digits, optionally
+ * followed by a dot and 1–7 decimal places. Rejects negative values, empty
+ * strings, scientific notation ("1e999"), and multi-dot inputs ("1.2.3").
+ */
+const POSITIVE_DECIMAL_RE = /^\d+(\.\d{1,7})?$/;
+
 const amountString = z
   .string()
   .trim()
-  .min(1)
+  .regex(POSITIVE_DECIMAL_RE, {
+    message:
+      "Amount must be a positive decimal number with up to 7 decimal places (e.g. \"100\", \"0.05\", \"1.234567\")",
+  })
   .transform((value) => normalizeAmount(value));
 
 /**
