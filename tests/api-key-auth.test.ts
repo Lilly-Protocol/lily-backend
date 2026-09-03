@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import request from "supertest";
 
-
 const TEST_KEY = "test-secret-key-12345";
 
 describe("API key authentication middleware (issue #81)", () => {
@@ -43,6 +42,48 @@ describe("API key authentication middleware (issue #81)", () => {
     expect(res.status).toBe(403);
     expect(res.body.success).toBe(false);
     expect(res.body.message).toContain("Invalid");
+  });
+
+  it("rejects near-miss keys differing only in the last or first character", async () => {
+    const { createApp: create } = await import("../src/app");
+    const app = create();
+
+    // Near-miss differing in last character
+    const nearMissEnd = TEST_KEY.slice(0, -1) + "X";
+    const resEnd = await request(app)
+      .get("/api/v1/agents")
+      .set("x-api-key", nearMissEnd);
+
+    expect(resEnd.status).toBe(403);
+    expect(resEnd.body.success).toBe(false);
+
+    // Near-miss differing in first character
+    const nearMissStart = "X" + TEST_KEY.slice(1);
+    const resStart = await request(app)
+      .get("/api/v1/agents")
+      .set("x-api-key", nearMissStart);
+
+    expect(resStart.status).toBe(403);
+    expect(resStart.body.success).toBe(false);
+  });
+
+  it("rejects keys of unequal length (both shorter and longer)", async () => {
+    const { createApp: create } = await import("../src/app");
+    const app = create();
+
+    // Shorter key
+    const resShorter = await request(app)
+      .get("/api/v1/agents")
+      .set("x-api-key", TEST_KEY.slice(0, 5));
+
+    expect(resShorter.status).toBe(403);
+
+    // Longer key
+    const resLonger = await request(app)
+      .get("/api/v1/agents")
+      .set("x-api-key", TEST_KEY + "-extra-bytes");
+
+    expect(resLonger.status).toBe(403);
   });
 
   it("returns 200 when the correct API key is provided", async () => {
