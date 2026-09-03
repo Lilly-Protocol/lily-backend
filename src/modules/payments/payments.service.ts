@@ -10,6 +10,7 @@ import type {
 } from "./payments.types";
 
 const QUOTE_TTL_MS = 5 * 60 * 1000;
+const STUB_RATE = "1.0002";
 
 const quotesStore = new Map<string, Quote>();
 const paymentsStore: PaymentRecord[] = [];
@@ -22,60 +23,64 @@ const generatePaymentId = (): string => {
   return `pay_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
-/**
- * Applies a one-percent fee to an amount string using exact decimal
- * arithmetic (the decimal point is shifted two places left) so large and
- * high-precision amounts are not distorted by floating point rounding.
- */
-export const applyStubFee = (amount: string): string => {
-  const trimmed = amount.trim();
-  if (!trimmed || trimmed === "0" || trimmed === "-0") {
-    return "0";
-  }
+interface ParsedDecimal {
+  value: bigint;
+  scale: number;
+}
 
-  const isNegative = trimmed.startsWith("-");
-  const unsigned = isNegative ? trimmed.slice(1) : trimmed;
-  const [intPart, fracPart = ""] = unsigned.split(".");
-  const digits = intPart + fracPart;
-  let scale = fracPart.length + 2;
+const parseDecimal = (input: string): ParsedDecimal => {
+  const trimmed = input.trim();
+  const negative = trimmed.startsWith("-");
+  const unsigned = negative ? trimmed.slice(1) : trimmed;
+  const [integerPart = "0", fractionalPart = ""] = unsigned.split(".");
+  const digits = `${integerPart || "0"}${fractionalPart}`.replace(/^0+(?=\d)/, "") || "0";
 
-  let big = BigInt(digits.replace(/^0+(?=\d)/, "") || "0");
+  return {
+    value: (negative ? -1n : 1n) * BigInt(digits),
+    scale: fractionalPart.length,
+  };
+};
 
-  while (scale > 0 && big % 10n === 0n) {
-    big /= 10n;
-    scale -= 1;
-  }
+const formatDecimal = (value: bigint, scale: number): string => {
+  if (value === 0n) return "0";
 
-  if (big === 0n) {
-    return "0";
-  }
-
-  const sign = isNegative ? "-" : "";
+  const negative = value < 0n;
+  let digits = (negative ? -value : value).toString();
 
   if (scale === 0) {
-    return `${sign}${big.toString()}`;
+    return `${negative ? "-" : ""}${digits}`;
   }
 
-  const padded = big.toString().padStart(scale + 1, "0");
-  const intResult = padded.slice(0, padded.length - scale);
-  const fracResult = padded.slice(-scale);
+  digits = digits.padStart(scale + 1, "0");
+  const integerPart = digits.slice(0, -scale);
+  const fractionalPart = digits.slice(-scale).replace(/0+$/, "");
+  const sign = negative ? "-" : "";
 
-  return `${sign}${intResult}.${fracResult}`;
+  return fractionalPart ? `${sign}${integerPart}.${fractionalPart}` : `${sign}${integerPart}`;
+};
+
+const multiplyDecimal = (left: string, right: string): string => {
+  const leftValue = parseDecimal(left);
+  const rightValue = parseDecimal(right);
+
+  return formatDecimal(leftValue.value * rightValue.value, leftValue.scale + rightValue.scale);
+};
+
+/**
+ * Applies a one-percent fee to an amount string using exact decimal
+ * arithmetic so large and high-precision amounts are not distorted by
+ * floating point rounding.
+ */
+export const applyStubFee = (amount: string): string => {
+  return multiplyDecimal(amount, "0.01");
 };
 
 const computeDestinationAmount = (sourceAmount: string): string => {
-  const amount = parseFloat(sourceAmount);
-  if (Number.isNaN(amount)) return "0";
-  const rate = "1.0002";
-  const dest = amount * parseFloat(rate);
-  return dest.toFixed(6);
+  return multiplyDecimal(sourceAmount, STUB_RATE);
 };
 
 const computeFee = (sourceAmount: string): string => {
-  const amount = parseFloat(sourceAmount);
-  if (Number.isNaN(amount)) return "0";
-  const fee = amount * 0.001;
-  return fee.toFixed(6);
+  return applyStubFee(sourceAmount);
 };
 
 const refreshExpiry = (quote: Quote): void => {
@@ -94,7 +99,7 @@ export const paymentsService = {
       sourceAmount: input.sourceAmount,
       destinationAmount: computeDestinationAmount(input.sourceAmount),
       fee: computeFee(input.sourceAmount),
-      rate: "1.0002",
+      rate: STUB_RATE,
       expiresAt: new Date(now.getTime() + QUOTE_TTL_MS).toISOString(),
       createdAt: now.toISOString(),
       status: "active",
