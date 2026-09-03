@@ -1,4 +1,4 @@
-import type { IncomingMessage } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 import compression from "compression";
 import cors from "cors";
@@ -54,6 +54,10 @@ const serializeRequestLog = (request: IncomingMessage & { id?: unknown }) => ({
   remotePort: request.socket?.remotePort,
 });
 
+const serializeResponseLog = (response: ServerResponse) => ({
+  statusCode: response.statusCode,
+});
+
 export const createApp = (): express.Express => {
   const app = express();
 
@@ -86,6 +90,7 @@ export const createApp = (): express.Express => {
       },
       serializers: {
         req: serializeRequestLog as never,
+        res: serializeResponseLog,
       },
     }),
   );
