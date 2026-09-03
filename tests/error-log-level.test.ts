@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../src/common/http/app-error";
 import { errorHandler } from "../src/common/http/error.middleware";
 import { logger } from "../src/config/logger";
+import { createTestApp } from "./helpers/create-test-app";
 
 const createErrorApp = (error: Error) => {
   const app = express();
@@ -46,5 +47,20 @@ describe("error handler log levels", () => {
     expect(response.status).toBe(500);
     expect(error).toHaveBeenCalledOnce();
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("logs a single line for a failed request in a full app with pino-http mounted", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+    const error = vi.spyOn(logger, "error").mockImplementation(() => logger);
+    const info = vi.spyOn(logger, "info").mockImplementation(() => logger);
+
+    const app = createTestApp();
+    const response = await request(app).get("/nonexistent");
+
+    expect(response.status).toBe(404);
+    // pino-http logs access at info, errorHandler logs at warn
+    expect(warn).toHaveBeenCalledOnce();
+    expect(error).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalled();
   });
 });
