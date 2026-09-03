@@ -21,16 +21,14 @@ describe("Error Message Redaction", () => {
   });
 
   afterEach(() => {
-    // @ts-expect-error - overriding readonly parsed env for test isolation
     env.NODE_ENV = originalNodeEnv;
     vi.restoreAllMocks();
   });
 
   it("should redact generic Error messages in production", async () => {
-    // @ts-expect-error - overriding readonly parsed env for test isolation
     env.NODE_ENV = "production";
     const res = await request(app).get("/test-generic");
-    
+
     expect(res.status).toBe(500);
     expect(res.body.success).toBe(false);
     expect(res.body.message).toBe("Internal server error");
@@ -38,20 +36,18 @@ describe("Error Message Redaction", () => {
   });
 
   it("should expose generic Error messages in non-production environments", async () => {
-    // @ts-expect-error - overriding readonly parsed env for test isolation
     env.NODE_ENV = "test";
     const res = await request(app).get("/test-generic");
-    
+
     expect(res.status).toBe(500);
     expect(res.body.success).toBe(false);
     expect(res.body.message).toBe("Sensitive internal stack trace details");
   });
 
   it("should always pass through AppError messages even in production", async () => {
-    // @ts-expect-error - overriding readonly parsed env for test isolation
     env.NODE_ENV = "production";
     const res = await request(app).get("/test-app-error");
-    
+
     expect(res.status).toBe(500);
     expect(res.body.success).toBe(false);
     expect(res.body.message).toBe("User-facing business error message");
