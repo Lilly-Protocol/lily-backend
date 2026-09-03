@@ -38,4 +38,58 @@ describe("request log sanitization", () => {
     expect(serializeRequest(request)).not.toHaveProperty("query");
     expect(serializeRequest(request)).not.toHaveProperty("raw");
   });
+
+  it("redacts client_secret and sensitive keys in requests", () => {
+    expect(
+      sanitizeRequestUrl("/api/v1/agents?client_secret=topsecret&safe_param=hello"),
+    ).toBe("/api/v1/agents?client_secret=%5BRedacted%5D&safe_param=hello");
+  });
+
+  it("normalizes case and dash variants for redaction", () => {
+    expect(
+      sanitizeRequestUrl(
+        "/api/v1/agents?API-KEY=secret&client-secret=confidential&wallet_seed=phrase",
+      ),
+    ).toBe(
+      "/api/v1/agents?API-KEY=%5BRedacted%5D&client-secret=%5BRedacted%5D&wallet_seed=%5BRedacted%5D",
+    );
+  });
+
+  it("falls back to socket remoteAddress and remotePort when top-level properties are missing", () => {
+    const request = {
+      id: "request-socket-1",
+      method: "POST",
+      url: "/api/v1/payments",
+      socket: {
+        remoteAddress: "10.0.0.1",
+        remotePort: 8080,
+      },
+    } as unknown as SerializedRequest;
+
+    expect(serializeRequest(request)).toEqual({
+      id: "request-socket-1",
+      method: "POST",
+      url: "/api/v1/payments",
+      remoteAddress: "10.0.0.1",
+      remotePort: 8080,
+    });
+  });
+
+  it("handles empty or undefined url gracefully", () => {
+    expect(sanitizeRequestUrl("")).toBe("");
+    expect(sanitizeRequestUrl()).toBe("");
+
+    const request = {
+      id: "req-empty",
+      method: "GET",
+    } as unknown as SerializedRequest;
+
+    expect(serializeRequest(request)).toEqual({
+      id: "req-empty",
+      method: "GET",
+      url: "",
+      remoteAddress: undefined,
+      remotePort: undefined,
+    });
+  });
 });
