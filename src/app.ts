@@ -73,7 +73,17 @@ export const createApp = (): express.Express => {
     pinoHttp({
       logger,
       autoLogging: { ignore: shouldIgnoreRequestLog },
-      customLogLevel(_request, response, error) {
+      customLogLevel(request, response, error) {
+        const hasHandledError =
+          Boolean(
+            (response as { locals?: { errorHandled?: boolean } }).locals
+              ?.errorHandled,
+          ) || Boolean((request as { _errorHandled?: boolean })?._errorHandled);
+
+        if (hasHandledError) {
+          return "info";
+        }
+
         if (error || response.statusCode >= 500) {
           return "error";
         }
