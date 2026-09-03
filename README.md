@@ -4,7 +4,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?logo=express&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs)
+![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)
 ![License](https://img.shields.io/badge/License-ISC-blue)
 
 Backend service for Lily Protocol, the autonomous agent finance infrastructure for AI agents on Stellar.
