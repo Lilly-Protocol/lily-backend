@@ -33,7 +33,19 @@ export const agentsService = {
   createAgent: (input: CreateAgentInput): Agent => {
     const now = new Date().toISOString();
     const slug = input.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+
+    if (!slug) {
+      throw new AppError(
+        400,
+        "Agent name must contain at least one alphanumeric character",
+      );
+    }
+
     const walletAddress = `G${slug.padEnd(55, "0").slice(0, 55)}`;
+
+    if (agents.some((agent) => agent.walletAddress === walletAddress)) {
+      throw new AppError(409, "Agent wallet address already exists");
+    }
 
     const agent: Agent = {
       id: `agentlily_${agentSequence++}`,
