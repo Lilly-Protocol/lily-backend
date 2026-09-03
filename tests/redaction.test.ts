@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
-import app from "../src/app";
+import { createApp } from "../src/app";
 
 describe("pino-http log redaction", () => {
   it("redacts sensitive query keys and omits body/auth headers from logs", async () => {
+    const app = createApp();
     const logs: Array<{ req?: Record<string, unknown> }> = [];
     const originalWrite = process.stdout.write;
     process.stdout.write = ((chunk: unknown) => {
@@ -27,17 +28,17 @@ describe("pino-http log redaction", () => {
     process.stdout.write = originalWrite;
 
     expect(logs.length).toBeGreaterThan(0);
-    const reqLog = logs[0].req;
+    const reqLog = logs[0]!.req;
 
     // Body and Authorization must never appear
-    expect(reqLog.body).toBeUndefined();
-    expect(reqLog.headers).toBeUndefined();
+    expect(reqLog?.body).toBeUndefined();
+    expect(reqLog?.headers).toBeUndefined();
 
     // Sensitive keys redacted, safe param preserved
-    expect(reqLog.url).toContain("api_key=%5BREDACTED%5D");
-    expect(reqLog.url).toContain("seed=%5BREDACTED%5D");
-    expect(reqLog.url).toContain("safe=value");
-    expect(reqLog.url).not.toContain("supersecret");
-    expect(reqLog.url).not.toContain("my-wallet-seed");
+    expect(reqLog?.url).toContain("api_key=%5BREDACTED%5D");
+    expect(reqLog?.url).toContain("seed=%5BREDACTED%5D");
+    expect(reqLog?.url).toContain("safe=value");
+    expect(reqLog?.url).not.toContain("supersecret");
+    expect(reqLog?.url).not.toContain("my-wallet-seed");
   });
 });
