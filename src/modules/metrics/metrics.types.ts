@@ -1,5 +1,6 @@
 export interface ProcessMetrics {
   uptimeSeconds: number;
+  eventLoopLagMs: number;
   memoryUsage: {
     rssBytes: number;
     heapTotalBytes: number;
