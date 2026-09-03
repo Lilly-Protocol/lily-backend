@@ -4,7 +4,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?logo=express&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs)
 ![License](https://img.shields.io/badge/License-ISC-blue)
 
 Backend service for Lily Protocol, the autonomous agent finance infrastructure for AI agents on Stellar.
@@ -49,6 +49,30 @@ cp .env.example .env
 ```
 
 The server runs on `http://localhost:4000` by default.
+
+## Configuration
+
+Environment variables are parsed and validated at startup by `src/config/env.ts`.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `NODE_ENV` | `development` | Runtime mode: `development`, `test`, or `production`. |
+| `PORT` | `4000` | HTTP server port. Must be between 1 and 65535. |
+| `APP_NAME` | `Lily Backend` | Service name used in diagnostics and logging. |
+| `BUILD_COMMIT` | unset | Optional build commit SHA exposed in health and startup diagnostics. |
+| `API_PREFIX` | `/api/v1` | Prefix under which API routes are mounted. |
+| `LOG_LEVEL` | `info` | Pino log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. |
+| `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated CORS origin allowlist. |
+| `BODY_SIZE_LIMIT` | `1mb` | Maximum accepted request-body size. |
+| `RATE_LIMIT_WINDOW_MS` | `900000` | Rate-limit window in milliseconds. |
+| `RATE_LIMIT_MAX_REQUESTS` | `100` | Maximum requests allowed per rate-limit window. |
+| `AUTH_API_KEY` | unset | Optional API key. Authentication is disabled when this variable is not set. |
+| `AUTH_API_KEY_HEADER` | `x-api-key` | Request header used to read the configured API key. |
+| `TRUST_PROXY` | `false` | Proxy trust policy: `false`, `loopback`, or a non-negative integer hop count. |
+
+To enable API-key authentication, set `AUTH_API_KEY` and send the same value in the configured header. The header defaults to `x-api-key` and can be changed with `AUTH_API_KEY_HEADER`.
+
+> **TRUST_PROXY safety:** prefer a specific hop count such as `1`, or `loopback`, when Lily Backend runs behind a known proxy. `TRUST_PROXY=true` is intentionally rejected by the environment schema because trusting every proxy is unsafe and can make client-IP based controls unreliable.
 
 ## Available Endpoints
 
@@ -135,7 +159,6 @@ npm run audit:prod
 npm run build
 npm run test:coverage
 ```
-
 
 ## Contributing
 
