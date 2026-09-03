@@ -9,4 +9,5 @@ export interface ProcessMetrics {
   nodeVersion: string;
   environment: string;
   timestamp: string;
+  eventLoopLagMs: number;
 }
