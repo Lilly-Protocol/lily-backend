@@ -5,6 +5,7 @@ import type {
   ExecutePaymentInput,
   ExecutePaymentResponse,
   GetQuoteResponse,
+  ListPaymentsResponse,
   PaymentRecord,
   Quote,
 } from "./payments.types";
@@ -159,6 +160,13 @@ export const paymentsService = {
     quote.status = "executed";
 
     return { payment };
+  },
+
+  listPayments(): ListPaymentsResponse {
+    return {
+      total: paymentsStore.length,
+      payments: [...paymentsStore],
+    };
   },
 
   reset(): void {
