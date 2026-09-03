@@ -12,6 +12,7 @@ import {
   methodNotAllowedHandler,
   notFoundHandler,
 } from "./common/http/not-found.middleware";
+import { serializeResponse } from "./common/http/request-logger";
 import { corsOptions } from "./config/cors";
 import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
@@ -86,6 +87,7 @@ export const createApp = (): express.Express => {
       },
       serializers: {
         req: serializeRequestLog as never,
+        res: serializeResponse as never,
       },
     }),
   );
