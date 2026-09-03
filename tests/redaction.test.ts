@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
 
@@ -25,9 +25,12 @@ describe("pino-http log redaction", () => {
       .set("Authorization", "Bearer leak-me")
       .send({ password: "leak-me" });
 
+    await vi.waitFor(() => {
+      expect(logs.length).toBeGreaterThan(0);
+    });
+
     process.stdout.write = originalWrite;
 
-    expect(logs.length).toBeGreaterThan(0);
     const reqLog = logs[0]!.req;
 
     // Body and Authorization must never appear

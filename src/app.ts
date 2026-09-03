@@ -93,7 +93,7 @@ export const createApp = (): express.Express => {
   app.get("/", (_request, response) => {
     response.status(200).json({
       success: true,
-      message: `${env.APP_NAME} is active`,
+      message: `${env.APP_NAME} is running`,
       docs: `${env.API_PREFIX}/health`,
     });
   });

@@ -1,20 +1,14 @@
 import type { Express } from "express";
 import request from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { createIsolatedTestApp } from "./helpers/create-test-app";
+import { createApp } from "@/app";
+import { agentsService } from "@/modules/agents/agents.service";
+
+const app: Express = createApp();
 
 describe("agent endpoints", () => {
-  let app: Express;
-
-  beforeEach(async () => {
-    app = await createIsolatedTestApp();
-  });
-
   it("exposes reset that restores the seeded agents for test isolation", async () => {
-    const { agentsService } =
-      await import("../src/modules/agents/agents.service");
-
     agentsService.reset();
     const response = await request(app).get("/api/v1/agents");
 
