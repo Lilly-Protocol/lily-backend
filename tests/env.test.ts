@@ -43,12 +43,13 @@ describe("env schema", () => {
     );
   });
 
-  it("transforms TRUST_PROXY string 'true' to boolean true", async () => {
+  it("transforms TRUST_PROXY numeric hop count string to a number", async () => {
     vi.stubEnv("NODE_ENV", "test");
-    vi.stubEnv("TRUST_PROXY", "true");
+    vi.stubEnv("TRUST_PROXY", "1");
     const { env } = await import("../src/config/env");
 
-    expect(env.TRUST_PROXY).toBe(true);
+    expect(env.TRUST_PROXY).toBe(1);
+    expect(typeof env.TRUST_PROXY).toBe("number");
   });
 
   it("transforms TRUST_PROXY string 'false' to boolean false", async () => {
@@ -57,6 +58,14 @@ describe("env schema", () => {
     const { env } = await import("../src/config/env");
 
     expect(env.TRUST_PROXY).toBe(false);
+  });
+
+  it("rejects unsafe TRUST_PROXY value 'true'", async () => {
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("TRUST_PROXY", "true");
+    await expect(() => import("../src/config/env")).rejects.toThrow(
+      /Invalid environment configuration/,
+    );
   });
 
   it("validates RATE_LIMIT_MAX_REQUESTS as positive integer", async () => {

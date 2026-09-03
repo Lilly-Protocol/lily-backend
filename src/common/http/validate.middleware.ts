@@ -11,6 +11,9 @@ interface ValidationErrorDetails {
 const flattenValidationError = (error: ZodError) => {
   const flattened = error.flatten() as ValidationErrorDetails;
 
+  // Zod reports unrecognized keys with an empty path, which `.flatten()`
+  // puts into `formErrors`. Surface them as per-field errors so clients can
+  // see exactly which payload keys were rejected.
   for (const issue of error.issues) {
     if (issue.code !== "unrecognized_keys") {
       continue;
@@ -38,7 +41,7 @@ export const validateBody = <TSchema extends ZodTypeAny>(
         new AppError(
           400,
           "Request validation failed",
-          result.error.flatten(),
+          flattenValidationError(result.error),
           "VALIDATION_ERROR",
         ),
       );
@@ -58,7 +61,12 @@ export const validateParams = <TSchema extends ZodTypeAny>(
 
     if (!result.success) {
       next(
-        new AppError(400, "Request validation failed", result.error.flatten()),
+        new AppError(
+          400,
+          "Request validation failed",
+          result.error.flatten(),
+          "VALIDATION_ERROR",
+        ),
       );
       return;
     }
@@ -77,13 +85,19 @@ export const validateQuery = <TSchema extends ZodTypeAny>(
 
     if (!result.success) {
       next(
-        new AppError(400, "Request validation failed", result.error.flatten()),
+        new AppError(
+          400,
+          "Request validation failed",
+          result.error.flatten(),
+          "VALIDATION_ERROR",
+        ),
       );
       return;
     }
 
     // req.query is read-only in Express 5; attach parsed data to validatedQuery
-    (request as Request & { validatedQuery?: unknown }).validatedQuery = result.data;
+    (request as Request & { validatedQuery?: unknown }).validatedQuery =
+      result.data;
     next();
   };
 };

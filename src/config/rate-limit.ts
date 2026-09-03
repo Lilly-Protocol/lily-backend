@@ -1,18 +1,37 @@
 import type { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
-import type { Request, Response } from "express";
 
 import { securityConfig } from "./env";
 
-const rateLimitHandler = (
+interface RateLimitLocals {
+  resetTime?: Date | null;
+}
+
+/**
+ * Custom 429 handler used when an express-rate-limit limiter is exceeded.
+ * Reads the limiter-provided reset time from `res.locals.rateLimit` so the
+ * Retry-After header and the response envelope reflect when the window resets.
+ */
+export const rateLimitHandler = (
   _request: Request,
   response: Response,
 ): void => {
-  const retryAfter = response.getHeader("Retry-After");
+  const resetTime =
+    (response.locals as { rateLimit?: RateLimitLocals }).rateLimit?.resetTime ??
+    null;
+
+  if (resetTime && resetTime.getTime() > Date.now()) {
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((resetTime.getTime() - Date.now()) / 1000),
+    );
+    response.setHeader("Retry-After", String(retryAfterSeconds));
+  }
+
   response.status(429).json({
     success: false,
     message: "Too many requests, please try again later.",
-    details: retryAfter !== undefined ? { retryAfterSeconds: Number(retryAfter) } : undefined,
+    details: { resetTime: resetTime ? resetTime.toISOString() : null },
   });
 };
 
@@ -22,11 +41,7 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test",
-  message: {
-    success: false,
-    code: "RATE_LIMITED",
-    message: "Too many requests, please try again later.",
-  },
+  handler: rateLimitHandler,
 });
 
 export const writeRateLimiter = rateLimit({
@@ -35,8 +50,5 @@ export const writeRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test",
-  message: {
-    success: false,
-    message: "Too many write requests, please try again later.",
-  },
+  handler: rateLimitHandler,
 });

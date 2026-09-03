@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app";
 import { env } from "../src/config/env";
+import { version } from "../package.json";
 
 describe("health endpoints", () => {
   const app = createApp();
@@ -29,7 +30,6 @@ describe("health endpoints", () => {
     expect(timestampMs).toBeGreaterThanOrEqual(beforeRequest);
     expect(timestampMs).toBeLessThanOrEqual(afterRequest);
   });
-
 
   it("returns a typed 404 payload for missing routes", async () => {
     const response = await request(app).get("/missing");

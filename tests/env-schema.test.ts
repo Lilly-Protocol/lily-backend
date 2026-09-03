@@ -42,13 +42,31 @@ describe("Env schema parser (issue #137)", () => {
     );
   });
 
-  it("should transform TRUST_PROXY string to boolean", async () => {
-    process.env.TRUST_PROXY = "true";
+  it("should transform numeric hop count string to a number", async () => {
+    process.env.TRUST_PROXY = "1";
     process.env.NODE_ENV = "test";
 
     const { env } = await import("../src/config/env");
-    expect(env.TRUST_PROXY).toBe(true);
+    expect(env.TRUST_PROXY).toBe(1);
+    expect(typeof env.TRUST_PROXY).toBe("number");
+  });
+
+  it("should transform TRUST_PROXY string 'false' to boolean false", async () => {
+    process.env.TRUST_PROXY = "false";
+    process.env.NODE_ENV = "test";
+
+    const { env } = await import("../src/config/env");
+    expect(env.TRUST_PROXY).toBe(false);
     expect(typeof env.TRUST_PROXY).toBe("boolean");
+  });
+
+  it("should reject unsafe TRUST_PROXY string 'true'", async () => {
+    process.env.TRUST_PROXY = "true";
+    process.env.NODE_ENV = "test";
+
+    await expect(import("../src/config/env")).rejects.toThrow(
+      "Invalid environment configuration",
+    );
   });
 
   it("should default TRUST_PROXY to false", async () => {

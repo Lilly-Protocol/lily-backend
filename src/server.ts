@@ -1,17 +1,14 @@
 import { createServer } from "node:http";
 
 import { createApp } from "./app";
+import { buildInfo } from "./config/build-info";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
-import { buildInfo } from "./config/build-info";
 
 const app = createApp();
 const server = createServer(app);
 
-const usingDefault = (value: string, fallback: string): boolean => value === fallback;
-
 server.listen(env.PORT, () => {
-  const defaultOrigins = "http://localhost:3000";
   logger.info(
     {
       appName: env.APP_NAME,
@@ -55,9 +52,6 @@ const shutdown = (signal: string) => {
     process.exit(0);
   });
 };
-
-const normalizeError = (reason: unknown): Error =>
-  reason instanceof Error ? reason : new Error(String(reason));
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));

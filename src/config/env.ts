@@ -3,7 +3,7 @@ import { z } from "zod";
 
 dotenv.config();
 
-const trustProxySchema = z.preprocess(
+export const trustProxySchema = z.preprocess(
   (val) => (val === undefined || val === "" ? "false" : val),
   z.union([
     z.literal("false").transform(() => false as const),
@@ -45,21 +45,9 @@ const envSchema = z.object({
     .positive()
     .default(15 * 60 * 1000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
-  TRUST_PROXY: z
-    .string()
-    .default("false")
-    .refine((val) => {
-      if (val === "true" || val === "false") return true;
-      const num = Number(val);
-      return Number.isInteger(num) && num >= 0;
-    }, {
-      message: `TRUST_PROXY must be "true", "false", or a non-negative integer hop count`,
-    })
-    .transform((value) => {
-      if (value === "false") return false as boolean | number;
-      if (value === "true") return true as boolean | number;
-      return Number(value) as boolean | number;
-    }),
+  AUTH_API_KEY: z.string().optional(),
+  AUTH_API_KEY_HEADER: z.string().min(1).default("x-api-key"),
+  TRUST_PROXY: trustProxySchema,
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

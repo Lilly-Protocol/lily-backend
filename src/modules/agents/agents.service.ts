@@ -1,12 +1,5 @@
 import { AppError } from "../../common/http/app-error";
-import type {
-  Agent,
-  AgentStatus,
-  CreateAgentInput,
-  CreateAgentResponse,
-  ListAgentsResponse,
-  UpdateAgentStatusResponse,
-} from "./agents.types";
+import type { Agent, AgentStatus, CreateAgentInput } from "./agents.types";
 
 const MAX_IN_MEMORY_AGENTS = 5_000;
 
@@ -28,7 +21,7 @@ let agents: Agent[] = [...initialAgents];
 let agentSequence = initialAgents.length + 1;
 
 export const agentsService = {
-  listAgents: () => ({
+  listAgents: (): { total: number; agents: Agent[] } => ({
     total: agents.length,
     agents: [...agents],
   }),
@@ -61,15 +54,32 @@ export const agentsService = {
     return agent;
   },
 
-  updateAgentStatus(id: string, status: Agent["status"]): UpdateAgentStatusResponse {
-    const agent = agentsStore.find((a) => a.id === id);
+  updateAgentStatus: (id: string, status: AgentStatus): { agent: Agent } => {
+    const agent = agents.find((candidate) => candidate.id === id);
 
     if (!agent) {
       throw new AppError(404, "Agent not found");
     }
 
     agent.status = status;
+    agent.updatedAt = new Date().toISOString();
 
     return { agent };
+  },
+
+  deleteAgent: (id: string): boolean => {
+    const index = agents.findIndex((agent) => agent.id === id);
+
+    if (index === -1) {
+      return false;
+    }
+
+    agents.splice(index, 1);
+    return true;
+  },
+
+  reset: (): void => {
+    agents = [...initialAgents];
+    agentSequence = initialAgents.length + 1;
   },
 };

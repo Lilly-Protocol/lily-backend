@@ -1,13 +1,15 @@
 import type { Request, Response } from "express";
 
+import { AppError } from "../../common/http/app-error";
 import type { ApiSuccessResponse } from "../../common/types/api-response";
-import type { CreateAgentResponse, ListAgentsResponse, UpdateAgentStatusResponse } from "./agents.types";
+import type { AgentStatus, CreateAgentInput } from "./agents.types";
 import { agentsService } from "./agents.service";
-import type { CreateAgentSchema, UpdateAgentSchema } from "./agents.schema";
 
 export const listAgents = (
   _request: Request,
-  response: Response<ApiSuccessResponse<ReturnType<typeof agentsService.listAgents>>>,
+  response: Response<
+    ApiSuccessResponse<ReturnType<typeof agentsService.listAgents>>
+  >,
 ): void => {
   response.status(200).json({
     success: true,
@@ -15,57 +17,48 @@ export const listAgents = (
   });
 };
 
+export const getAgentById = (
+  request: Request<{ id: string }>,
+  response: Response,
+): void => {
+  const agent = agentsService.getAgentById(request.params.id);
+
+  if (!agent) {
+    throw new AppError(404, `Agent not found: ${request.params.id}`);
+  }
+
+  response.status(200).json({
+    success: true,
+    data: { agent },
+  });
+};
+
 export const createAgent = (
   request: Request<Record<string, never>, unknown, CreateAgentInput>,
-  response: Response<ApiSuccessResponse<CreateAgentResponse>>,
+  response: Response,
 ): void => {
   const agent = agentsService.createAgent(request.body);
 
   response.status(201).json({
     success: true,
-    data: {
-      agent,
-    },
+    data: { agent },
   });
 };
 
 export const updateAgentStatus = (
-  request: Request<{ id: string }>,
-  response: Response<ApiSuccessResponse<UpdateAgentStatusResponse>>,
+  request: Request<{ id: string }, unknown, { status: AgentStatus }>,
+  response: Response<
+    ApiSuccessResponse<ReturnType<typeof agentsService.updateAgentStatus>>
+  >,
 ): void => {
-  const { id } = request.params;
-  const { status } = request.body;
-
-  const result = agentsService.updateAgentStatus(id, status);
+  const data = agentsService.updateAgentStatus(
+    request.params.id,
+    request.body.status,
+  );
 
   response.status(200).json({
     success: true,
-    data: result,
-  });
-};
-
-export const createAgent = (
-  request: Request<object, unknown, CreateAgentSchema>,
-  response: Response<ApiSuccessResponse<ReturnType<typeof agentsService.createAgent>>>,
-): void => {
-  const agent = agentsService.createAgent(request.body);
-  response.status(201).json({
-    success: true,
-    data: agent,
-  });
-};
-
-export const updateAgent = (
-  request: Request<{ id: string }, unknown, UpdateAgentSchema>,
-  response: Response,
-): void => {
-  const updated = agentsService.updateAgent(request.params.id, request.body);
-  if (!updated) {
-    throw new AppError(404, `Agent not found: ${request.params.id}`);
-  }
-  response.status(200).json({
-    success: true,
-    data: { agent: updated },
+    data,
   });
 };
 
@@ -73,9 +66,9 @@ export const deleteAgent = (
   request: Request<{ id: string }>,
   response: Response,
 ): void => {
-  const deleted = agentsService.deleteAgent(request.params.id);
-  if (!deleted) {
+  if (!agentsService.deleteAgent(request.params.id)) {
     throw new AppError(404, `Agent not found: ${request.params.id}`);
   }
-  response.status(204).send();
+
+  response.status(204).end();
 };

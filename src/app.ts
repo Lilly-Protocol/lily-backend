@@ -1,64 +1,92 @@
+import type { IncomingMessage } from "node:http";
+
 import compression from "compression";
 import cors from "cors";
-import { pino } from 'pino';
 import express from "express";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
 
+import { cacheControlNoStore } from "./common/http/cache-control.middleware";
 import { errorHandler } from "./common/http/error.middleware";
-import { methodNotAllowedHandler, notFoundHandler } from "./common/http/not-found.middleware";
+import {
+  methodNotAllowedHandler,
+  notFoundHandler,
+} from "./common/http/not-found.middleware";
 import { corsOptions } from "./config/cors";
 import { env, securityConfig } from "./config/env";
-const SENSITIVE_QUERY_KEYS = ['api_key', 'apikey', 'key', 'token', 'secret', 'seed', 'wallet_seed', 'private_key'];
-
-function redactUrl(url: string): string {
-  try {
-    const u = new URL(url, 'http://localhost');
-    let changed = false;
-    for (const key of SENSITIVE_QUERY_KEYS) {
-      if (u.searchParams.has(key)) {
-        u.searchParams.set(key, '[REDACTED]');
-        changed = true;
-      }
-    }
-    return changed ? `${u.pathname}${u.search}` : url;
-  } catch {
-    return url;
-  }
-}
-
-app.use(
-  pinoHttp({
-    logger,
-    serializers: {
-      req(req) {
-        const serialized = pino.stdSerializers.req(req);
-        return {
-          ...serialized,
-          url: redactUrl(serialized.url || ''),
-          headers: undefined,
-          body: undefined,
-        };
-      },
-    },
-  }),
-);
+import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { shouldIgnoreRequestLog } from "./config/request-logging";
 import { apiRouter } from "./routes";
-import { serializeRequest } from "./common/http/request-logger";
 
-export const createApp = (): Express => {
+const sensitiveQueryKeys = [
+  "api_key",
+  "apikey",
+  "key",
+  "token",
+  "secret",
+  "seed",
+  "wallet_seed",
+  "private_key",
+];
+
+const redactUrl = (url: string): string => {
+  try {
+    const parsed = new URL(url, "http://localhost");
+    let changed = false;
+    for (const key of sensitiveQueryKeys) {
+      if (parsed.searchParams.has(key)) {
+        parsed.searchParams.set(key, "[REDACTED]");
+        changed = true;
+      }
+    }
+    return changed ? `${parsed.pathname}${parsed.search}` : url;
+  } catch {
+    return url;
+  }
+};
+
+const serializeRequestLog = (request: IncomingMessage & { id?: unknown }) => ({
+  id: request.id,
+  method: request.method,
+  url: redactUrl(request.url ?? ""),
+  remoteAddress: request.socket?.remoteAddress,
+  remotePort: request.socket?.remotePort,
+});
+
+export const createApp = (): express.Express => {
   const app = express();
 
-  app.use(helmet());
-  app.use(corsMiddleware);
+  app.disable("x-powered-by");
+  app.set("trust proxy", securityConfig.trustProxy);
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    }),
+  );
+  app.use(cors(corsOptions));
   app.use(compression());
-  app.use(express.json());
+  app.use(express.json({ limit: securityConfig.bodySizeLimit }));
+  app.use(express.urlencoded({ extended: true }));
+  app.use(cacheControlNoStore);
   app.use(
     pinoHttp({
       logger,
-      autoLogging: env.NODE_ENV !== "test",
+      autoLogging: { ignore: shouldIgnoreRequestLog },
+      customLogLevel(_request, response, error) {
+        if (error || response.statusCode >= 500) {
+          return "error";
+        }
+
+        if (response.statusCode >= 400) {
+          return "warn";
+        }
+
+        return "info";
+      },
+      serializers: {
+        req: serializeRequestLog as never,
+      },
     }),
   );
 
