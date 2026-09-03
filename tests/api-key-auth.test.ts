@@ -78,6 +78,44 @@ describe("API key authentication middleware (issue #81)", () => {
     expect(res.body.success).toBe(true);
   });
 
+  it("rejects near-miss keys of identical length", async () => {
+    const { createApp: create } = await import("../src/app");
+    const app = create();
+
+    // Near-miss key: same length, differs only in the last char
+    const nearMissKey = TEST_KEY.slice(0, -1) + "X";
+
+    const res = await request(app)
+      .get("/api/v1/agents")
+      .set("x-api-key", nearMissKey);
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain("Invalid");
+  });
+
+  it("rejects keys of different lengths immediately without crashing", async () => {
+    const { createApp: create } = await import("../src/app");
+    const app = create();
+
+    const shortKey = "short";
+    const longKey = TEST_KEY + "-extra-long-suffix";
+
+    const resShort = await request(app)
+      .get("/api/v1/agents")
+      .set("x-api-key", shortKey);
+
+    expect(resShort.status).toBe(403);
+    expect(resShort.body.success).toBe(false);
+
+    const resLong = await request(app)
+      .get("/api/v1/agents")
+      .set("x-api-key", longKey);
+
+    expect(resLong.status).toBe(403);
+    expect(resLong.body.success).toBe(false);
+  });
+
   it("supports a custom header name via AUTH_API_KEY_HEADER", async () => {
     process.env.AUTH_API_KEY_HEADER = "x-custom-auth";
     const { createApp: create } = await import("../src/app");
