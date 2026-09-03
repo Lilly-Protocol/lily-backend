@@ -84,24 +84,43 @@ describe("Idempotency-Key middleware", () => {
     expect(second.body.data.agent.id).not.toBe(first.body.data.agent.id);
   });
 
-  it("does not cache error responses", async () => {
+  it("does not cache error responses and allows retry with corrected payload", async () => {
     const badPayload = {
       name: "x",
       description: "too short",
       capabilities: [],
     };
 
+    const goodPayload = {
+      name: "Fixed Agent",
+      description: "A properly formed agent description",
+      capabilities: ["testing"],
+    };
+
+    // First attempt fails with 400 validation error
     await request(app)
       .post("/api/v1/agents")
-      .set("Idempotency-Key", "key-err")
+      .set("Idempotency-Key", "key-err-retry")
       .send(badPayload)
       .expect(400);
 
-    await request(app)
+    // Second attempt with corrected payload using same key should succeed (201) and not return stale 400
+    const res = await request(app)
       .post("/api/v1/agents")
-      .set("Idempotency-Key", "key-err")
-      .send(badPayload)
-      .expect(400);
+      .set("Idempotency-Key", "key-err-retry")
+      .send(goodPayload)
+      .expect(201);
+
+    expect(res.body.data.agent.name).toBe("Fixed Agent");
+
+    // Third attempt with same key should replay the cached 201 response
+    const replay = await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", "key-err-retry")
+      .send(goodPayload)
+      .expect(201);
+
+    expect(replay.body).toEqual(res.body);
   });
 
   it("ignores idempotency on GET requests (no caching)", async () => {
