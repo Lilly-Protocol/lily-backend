@@ -50,6 +50,30 @@ cp .env.example .env
 
 The server runs on `http://localhost:4000` by default.
 
+## Configuration
+
+Configuration is loaded from the environment and validated at startup. Invalid values fail fast before the server starts.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `NODE_ENV` | `development` | Runtime mode: `development`, `test`, or `production`. |
+| `PORT` | `4000` | HTTP server port. |
+| `APP_NAME` | `Lily Backend` | Service name used in health and log metadata. |
+| `BUILD_COMMIT` | unset | Optional commit SHA exposed in build/health diagnostics. |
+| `API_PREFIX` | `/api/v1` | Prefix used when mounting API routes. |
+| `LOG_LEVEL` | `info` | Pino log level (`fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`). |
+| `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated origin allowlist. |
+| `BODY_SIZE_LIMIT` | `1mb` | Express request-body size limit. |
+| `RATE_LIMIT_WINDOW_MS` | `900000` | Shared API rate-limit window in milliseconds. |
+| `RATE_LIMIT_MAX_REQUESTS` | `100` | Maximum requests allowed per rate-limit window. |
+| `AUTH_API_KEY` | unset | Optional static API key. When unset, API-key authentication is disabled. |
+| `AUTH_API_KEY_HEADER` | `x-api-key` | Request header used to read the configured API key. |
+| `TRUST_PROXY` | `false` | Express proxy trust setting: `false`, a non-negative hop count, or `loopback`. |
+
+To enable API-key authentication, set `AUTH_API_KEY` and send that value in the header named by `AUTH_API_KEY_HEADER` (default `x-api-key`). Leaving `AUTH_API_KEY` unset keeps the middleware in its unauthenticated mode.
+
+`TRUST_PROXY=true` is intentionally rejected because it would trust every proxy hop. In production, configure the specific hop count for your proxy topology (for example `1` for one reverse proxy) or use `loopback` where appropriate.
+
 ## Available Endpoints
 
 - `GET /`
