@@ -1,13 +1,17 @@
 import type { IncomingMessage } from "node:http";
 
-const HEALTH_PATH = "/api/v1/health";
+import { env } from "./env";
 
 export const shouldIgnoreRequestLog = (request: IncomingMessage): boolean => {
   const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+  const healthPath = `${env.API_PREFIX}/health`;
+  const metricsPath = `${env.API_PREFIX}/metrics`;
 
   return (
     pathname === "/" ||
-    pathname === HEALTH_PATH ||
-    pathname.startsWith(`${HEALTH_PATH}/`)
+    pathname === healthPath ||
+    pathname.startsWith(`${healthPath}/`) ||
+    pathname === metricsPath ||
+    pathname.startsWith(`${metricsPath}/`)
   );
 };
