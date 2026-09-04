@@ -68,17 +68,14 @@ export const errorHandler = (
   const isAppError = error instanceof AppError;
   const details = isAppError ? error.details : undefined;
 
-  const logLevel = statusCode >= 400 && statusCode < 500 ? "warn" : "error";
-
-  logger[logLevel](
-    {
-      err: error,
-      method: request.method,
-      path: request.originalUrl,
-      statusCode,
-    },
-    "Request failed",
-  );
+  // Attach error details to the response locals so pino-http can log them
+  // in its single response log line, avoiding duplicate log entries.
+  response.locals.errorDetails = {
+    err: error,
+    statusCode,
+    ...(isAppError && error.code ? { code: error.code } : {}),
+    ...(details !== undefined ? { details } : {}),
+  };
 
   response.status(statusCode).json({
     success: false,
