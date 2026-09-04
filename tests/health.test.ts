@@ -40,6 +40,35 @@ describe("health endpoints", () => {
     expect(response.body.message).toContain("Route not found");
   });
 
+  it("returns liveness payload with status, service, and timestamp from healthService.getLiveness", async () => {
+    const response = await request(app).get("/api/v1/health/live");
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toMatchObject({
+      status: "ok",
+      service: env.APP_NAME,
+      timestamp: expect.any(String),
+    });
+    expect(Number.isNaN(Date.parse(response.body.data.timestamp))).toBe(false);
+  });
+
+  it("returns readiness payload with checks.dependencies equal to ok from healthService.getReadiness", async () => {
+    const response = await request(app).get("/api/v1/health/ready");
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toMatchObject({
+      status: "ok",
+      service: env.APP_NAME,
+      environment: env.NODE_ENV,
+      checks: {
+        dependencies: "ok",
+      },
+      timestamp: expect.any(String),
+    });
+  });
+
   it("asserts all health payload fields per contract (issue #134)", async () => {
     const response = await request(app).get("/api/v1/health");
 
