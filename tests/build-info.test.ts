@@ -9,16 +9,18 @@ describe("service build metadata", () => {
 
   it("always exposes the package version and omits absent commit metadata", async () => {
     vi.stubEnv("BUILD_COMMIT", "");
-    const { getServiceInfo } = await import("../src/config/service-info");
+    vi.resetModules();
+    const { buildInfo } = await import("../src/config/build-info");
 
-    expect(getServiceInfo()).toEqual({ version: "1.0.0" });
+    expect(buildInfo).toEqual({ version: "1.0.0" });
   });
 
   it("exposes a configured build commit when available", async () => {
     vi.stubEnv("BUILD_COMMIT", "abc123def456");
-    const { getServiceInfo } = await import("../src/config/service-info");
+    vi.resetModules();
+    const { buildInfo } = await import("../src/config/build-info");
 
-    expect(getServiceInfo()).toEqual({
+    expect(buildInfo).toEqual({
       version: "1.0.0",
       commit: "abc123def456",
     });
@@ -26,6 +28,7 @@ describe("service build metadata", () => {
 
   it("includes version and optional commit metadata in the health response", async () => {
     vi.stubEnv("BUILD_COMMIT", "abc123def456");
+    vi.resetModules();
     const { createApp } = await import("../src/app");
 
     const response = await request(createApp()).get("/api/v1/health");

@@ -3,7 +3,9 @@ import { resolve } from "node:path";
 
 import { env } from "./env";
 
-// 源码和编译产物的配置目录均位于项目根目录下两层，避免依赖启动目录。
+// Resolve package.json from both source and compiled output locations.
+// The file sits two levels above this module, so the path is independent
+// of the current working directory at runtime.
 const { version } = JSON.parse(
   readFileSync(resolve(__dirname, "../../package.json"), "utf8"),
 ) as { version: string };
