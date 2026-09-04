@@ -1,21 +1,76 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { env } from "../../config/env";
-import { logger } from "../../config/logger";
-import { AppError } from "./app-error";
+import { AppError } from "@/common/http/app-error";
+import { env } from "@/config/env";
+import { logger } from "@/config/logger";
+
+type HttpLikeError = Error & {
+  status?: unknown;
+  statusCode?: unknown;
+  type?: string;
+};
+
+const isHttpStatusCode = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= 400 &&
+  value <= 599;
+
+const getStatusCode = (error: unknown): number => {
+  if (error instanceof AppError) {
+    return error.statusCode;
+  }
+
+  const httpError = error as HttpLikeError;
+
+  if (isHttpStatusCode(httpError.statusCode)) {
+    return httpError.statusCode;
+  }
+
+  if (isHttpStatusCode(httpError.status)) {
+    return httpError.status;
+  }
+
+  return 500;
+};
+
+const getMessage = (error: unknown): string => {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (!(error instanceof Error)) {
+    return "An unexpected error occurred";
+  }
+
+  const httpError = error as HttpLikeError;
+
+  if (httpError.type === "entity.parse.failed") {
+    return "Malformed JSON request body";
+  }
+
+  if (httpError.type === "entity.too.large") {
+    return "Request body too large";
+  }
+
+  return error.message;
+};
 
 export const errorHandler = (
-  error: Error,
+  error: unknown,
   request: Request,
   response: Response,
   _next: NextFunction,
 ): void => {
   void _next;
 
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
-  const details = error instanceof AppError ? error.details : undefined;
+  const statusCode = getStatusCode(error);
+  const isAppError = error instanceof AppError;
+  const details = isAppError ? error.details : undefined;
 
-  logger.error(
+  const logLevel = statusCode >= 400 && statusCode < 500 ? "warn" : "error";
+
+  logger[logLevel](
     {
       err: error,
       method: request.method,
@@ -27,10 +82,11 @@ export const errorHandler = (
 
   response.status(statusCode).json({
     success: false,
+    ...(isAppError && error.code ? { code: error.code } : {}),
     message:
-      statusCode === 500 && env.NODE_ENV === "production"
+      statusCode === 500 && !isAppError && env.NODE_ENV === "production"
         ? "Internal server error"
-        : error.message,
-    ...(details ? { details } : {}),
+        : getMessage(error),
+    ...(details !== undefined ? { details } : {}),
   });
 };
