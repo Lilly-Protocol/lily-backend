@@ -1,13 +1,22 @@
 import type { IncomingMessage } from "node:http";
 
-const HEALTH_PATH = "/api/v1/health";
+import { env } from "./env";
 
-export const shouldIgnoreRequestLog = (request: IncomingMessage): boolean => {
+export const shouldIgnoreRequestLog = (
+  request: IncomingMessage,
+  prefix: string = env.API_PREFIX,
+): boolean => {
   const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+
+  const normalizedPrefix = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
+  const healthPath = `${normalizedPrefix}/health`;
+  const metricsPath = `${normalizedPrefix}/metrics`;
 
   return (
     pathname === "/" ||
-    pathname === HEALTH_PATH ||
-    pathname.startsWith(`${HEALTH_PATH}/`)
+    pathname === healthPath ||
+    pathname.startsWith(`${healthPath}/`) ||
+    pathname === metricsPath ||
+    pathname.startsWith(`${metricsPath}/`)
   );
 };
