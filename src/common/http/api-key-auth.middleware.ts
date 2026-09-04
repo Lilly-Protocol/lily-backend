@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { timingSafeEqual } from "node:crypto";
 
 import { securityConfig } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -6,11 +7,17 @@ import { AppError } from "./app-error";
 
 let warnedAboutMissingKey = false;
 
-export function apiKeyAuth(request: Request, _response: Response, next: NextFunction): void {
+export function apiKeyAuth(
+  request: Request,
+  _response: Response,
+  next: NextFunction,
+): void {
   if (!securityConfig.authApiKey) {
     if (!warnedAboutMissingKey) {
       warnedAboutMissingKey = true;
-      logger.warn("AUTH_API_KEY is not set — API key authentication is disabled");
+      logger.warn(
+        "AUTH_API_KEY is not set — API key authentication is disabled",
+      );
     }
     return next();
   }
@@ -22,7 +29,15 @@ export function apiKeyAuth(request: Request, _response: Response, next: NextFunc
     return next(new AppError(401, "API key is required"));
   }
 
-  if (providedKey !== securityConfig.authApiKey) {
+  const expectedKey = securityConfig.authApiKey;
+
+  // Constant-time comparison: reject unequal lengths first, then compare bytes
+  // without short-circuiting to avoid timing leaks of the key prefix.
+  if (providedKey.length !== expectedKey.length) {
+    return next(new AppError(403, "Invalid API key"));
+  }
+
+  if (!timingSafeEqual(Buffer.from(providedKey), Buffer.from(expectedKey))) {
     return next(new AppError(403, "Invalid API key"));
   }
 
