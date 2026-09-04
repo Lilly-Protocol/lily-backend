@@ -72,6 +72,7 @@ export const errorHandler = (
 
   logger[logLevel](
     {
+      reqId: (request as Request & { id?: unknown }).id,
       err: error,
       method: request.method,
       path: request.originalUrl,
