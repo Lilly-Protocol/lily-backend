@@ -38,8 +38,10 @@ describe("pino-http log redaction", () => {
     expect(reqLog?.headers).toBeUndefined();
 
     // Sensitive keys redacted, safe param preserved
-    expect(reqLog?.url).toContain("api_key=%5BREDACTED%5D");
-    expect(reqLog?.url).toContain("seed=%5BREDACTED%5D");
+    // The shared request-logger serializer emits "[Redacted]" (camelCase),
+    // which gets URL-encoded as %5BRedacted%5D — see issue #272.
+    expect(reqLog?.url).toContain("api_key=%5BRedacted%5D");
+    expect(reqLog?.url).toContain("seed=%5BRedacted%5D");
     expect(reqLog?.url).toContain("safe=value");
     expect(reqLog?.url).not.toContain("supersecret");
     expect(reqLog?.url).not.toContain("my-wallet-seed");

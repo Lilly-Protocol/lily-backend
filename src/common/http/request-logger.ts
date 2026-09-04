@@ -17,6 +17,7 @@ const sensitiveQueryKeys = new Set([
   "refresh_token",
   "secret",
   "session",
+  "seed",
   "signature",
   "sig",
   "token",
