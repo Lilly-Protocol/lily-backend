@@ -35,11 +35,15 @@ export const idempotencyKeyMiddleware = (
 
   const originalJson = res.json.bind(res);
   res.json = ((body: unknown) => {
-    store.set(key, {
-      response: body,
-      statusCode: res.statusCode,
-      createdAt: Date.now(),
-    });
+    // Only cache successful responses. Failed requests (validation errors,
+    // unhandled exceptions, etc.) should not poison the store for retries.
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      store.set(key, {
+        response: body,
+        statusCode: res.statusCode,
+        createdAt: Date.now(),
+      });
+    }
     return originalJson(body);
   }) as typeof res.json;
 

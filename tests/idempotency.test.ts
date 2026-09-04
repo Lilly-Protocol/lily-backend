@@ -91,17 +91,32 @@ describe("Idempotency-Key middleware", () => {
       capabilities: [],
     };
 
-    await request(app)
-      .post("/api/v1/agents")
-      .set("Idempotency-Key", "key-err")
-      .send(badPayload)
-      .expect(400);
+    const goodPayload = {
+      name: "Good Agent",
+      description: "A valid agent payload for retry",
+      capabilities: ["testing"],
+    };
+
+    const before = await request(app).get("/api/v1/agents").expect(200);
 
     await request(app)
       .post("/api/v1/agents")
       .set("Idempotency-Key", "key-err")
       .send(badPayload)
       .expect(400);
+
+    // Retrying with a corrected payload should succeed and create exactly one
+    // new agent, proving the failed response was not cached.
+    const retry = await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", "key-err")
+      .send(goodPayload)
+      .expect(201);
+
+    expect(retry.body.data.agent.name).toBe("Good Agent");
+
+    const after = await request(app).get("/api/v1/agents").expect(200);
+    expect(after.body.data.total).toBe(before.body.data.total + 1);
   });
 
   it("ignores idempotency on GET requests (no caching)", async () => {
