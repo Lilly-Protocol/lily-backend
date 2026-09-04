@@ -1,4 +1,4 @@
-import type { SerializedRequest } from "pino-std-serializers";
+import type { SerializedRequest, SerializedResponse } from "pino-std-serializers";
 
 const REDACTED = "[Redacted]";
 
@@ -51,4 +51,8 @@ export const serializeRequest = (request: SerializedRequest) => ({
   url: sanitizeRequestUrl(request.url),
   remoteAddress: request.remoteAddress,
   remotePort: request.remotePort,
+});
+
+export const serializeResponse = (response: SerializedResponse | { statusCode?: number; [key: string]: unknown }) => ({
+  statusCode: response.statusCode,
 });

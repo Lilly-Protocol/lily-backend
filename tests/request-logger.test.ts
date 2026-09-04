@@ -1,9 +1,13 @@
-import type { SerializedRequest } from "pino-std-serializers";
+import type { SerializedRequest, SerializedResponse } from "pino-std-serializers";
 import { describe, expect, it } from "vitest";
 
-import { sanitizeRequestUrl, serializeRequest } from "../src/common/http/request-logger";
+import {
+  sanitizeRequestUrl,
+  serializeRequest,
+  serializeResponse,
+} from "../src/common/http/request-logger";
 
-describe("request log sanitization", () => {
+describe("request and response log sanitization", () => {
   it("redacts sensitive query values while preserving safe query context", () => {
     expect(
       sanitizeRequestUrl(
@@ -37,5 +41,23 @@ describe("request log sanitization", () => {
     expect(serializeRequest(request)).not.toHaveProperty("headers");
     expect(serializeRequest(request)).not.toHaveProperty("query");
     expect(serializeRequest(request)).not.toHaveProperty("raw");
+  });
+
+  it("omits response headers and keeps statusCode in serializeResponse", () => {
+    const response = {
+      statusCode: 200,
+      headers: {
+        "content-type": "application/json",
+        "content-security-policy": "default-src 'self'",
+        "set-cookie": ["session=123"],
+      },
+      raw: {},
+    } as unknown as SerializedResponse;
+
+    expect(serializeResponse(response)).toEqual({
+      statusCode: 200,
+    });
+    expect(serializeResponse(response)).not.toHaveProperty("headers");
+    expect(serializeResponse(response)).not.toHaveProperty("raw");
   });
 });
