@@ -1,11 +1,39 @@
 import type { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 
-import { securityConfig } from "./env";
+import { env, securityConfig } from "./env";
 
 interface RateLimitLocals {
   resetTime?: Date | null;
 }
+
+/**
+ * Checks if a request path is an operational endpoint (health, metrics, root)
+ * that should be exempted from rate limiting to prevent orchestrator probes
+ * and metrics scrapers from consuming client rate-limit budget or causing 429s.
+ */
+export const isOperationalPath = (
+  req: Request,
+  prefix: string = env.API_PREFIX,
+): boolean => {
+  const urlString = req.originalUrl || req.url || "/";
+  const pathname = new URL(urlString, "http://localhost").pathname;
+  const normalizedPrefix = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
+  const healthPath = `${normalizedPrefix}/health`;
+  const metricsPath = `${normalizedPrefix}/metrics`;
+
+  return (
+    pathname === "/" ||
+    pathname === healthPath ||
+    pathname.startsWith(`${healthPath}/`) ||
+    pathname === metricsPath ||
+    pathname.startsWith(`${metricsPath}/`) ||
+    req.path === "/health" ||
+    req.path?.startsWith("/health/") ||
+    req.path === "/metrics" ||
+    req.path?.startsWith("/metrics/")
+  );
+};
 
 /**
  * Custom 429 handler used when an express-rate-limit limiter is exceeded.
@@ -40,7 +68,7 @@ export const apiRateLimiter = rateLimit({
   limit: securityConfig.rateLimitMaxRequests,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => process.env.NODE_ENV === "test",
+  skip: (req) => process.env.NODE_ENV === "test" || isOperationalPath(req),
   handler: rateLimitHandler,
 });
 
@@ -49,6 +77,6 @@ export const writeRateLimiter = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => process.env.NODE_ENV === "test",
+  skip: (req) => process.env.NODE_ENV === "test" || isOperationalPath(req),
   handler: rateLimitHandler,
 });
