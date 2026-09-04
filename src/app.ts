@@ -84,6 +84,13 @@ export const createApp = (): express.Express => {
 
         return "info";
       },
+      customProps(request, response) {
+        const locals = (response as any).locals;
+        if (locals && locals.errorDetails) {
+          return { err: locals.errorDetails.err };
+        }
+        return {};
+      },
       serializers: {
         req: serializeRequestLog as never,
       },
