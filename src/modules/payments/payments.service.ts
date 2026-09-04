@@ -63,19 +63,66 @@ export const applyStubFee = (amount: string): string => {
   return `${sign}${intResult}.${fracResult}`;
 };
 
+const QUOTE_RATE = "1.0002";
+
+const parseDecimal = (
+  amount: string,
+): { digits: bigint; scale: number; sign: string } => {
+  const trimmed = amount.trim();
+  if (!trimmed || trimmed === "0" || trimmed === "-0") {
+    return { digits: 0n, scale: 0, sign: "" };
+  }
+
+  const isNegative = trimmed.startsWith("-");
+  const unsigned = isNegative ? trimmed.slice(1) : trimmed;
+  const [intPart, fracPart = ""] = unsigned.split(".");
+  const digits = BigInt((intPart + fracPart).replace(/^0+(?=\d)/, "") || "0");
+
+  return {
+    digits,
+    scale: fracPart.length,
+    sign: isNegative ? "-" : "",
+  };
+};
+
+const formatDecimal = (digits: bigint, scale: number, sign: string): string => {
+  if (digits === 0n) {
+    return "0";
+  }
+
+  let big = digits;
+  let remainingScale = scale;
+
+  while (remainingScale > 0 && big % 10n === 0n) {
+    big /= 10n;
+    remainingScale -= 1;
+  }
+
+  if (remainingScale === 0) {
+    return `${sign}${big.toString()}`;
+  }
+
+  const padded = big.toString().padStart(remainingScale + 1, "0");
+  const intResult = padded.slice(0, padded.length - remainingScale);
+  const fracResult = padded.slice(-remainingScale);
+
+  return `${sign}${intResult}.${fracResult}`;
+};
+
+const multiplyDecimals = (left: string, right: string): string => {
+  const a = parseDecimal(left);
+  const b = parseDecimal(right);
+  const negative = a.sign !== b.sign && a.digits !== 0n && b.digits !== 0n;
+
+  return formatDecimal(a.digits * b.digits, a.scale + b.scale, negative ? "-" : "");
+};
+
 const computeDestinationAmount = (sourceAmount: string): string => {
-  const amount = parseFloat(sourceAmount);
-  if (Number.isNaN(amount)) return "0";
-  const rate = "1.0002";
-  const dest = amount * parseFloat(rate);
-  return dest.toFixed(6);
+  return multiplyDecimals(sourceAmount, QUOTE_RATE);
 };
 
 const computeFee = (sourceAmount: string): string => {
-  const amount = parseFloat(sourceAmount);
-  if (Number.isNaN(amount)) return "0";
-  const fee = amount * 0.001;
-  return fee.toFixed(6);
+  return applyStubFee(sourceAmount);
 };
 
 const refreshExpiry = (quote: Quote): void => {
@@ -94,7 +141,7 @@ export const paymentsService = {
       sourceAmount: input.sourceAmount,
       destinationAmount: computeDestinationAmount(input.sourceAmount),
       fee: computeFee(input.sourceAmount),
-      rate: "1.0002",
+      rate: QUOTE_RATE,
       expiresAt: new Date(now.getTime() + QUOTE_TTL_MS).toISOString(),
       createdAt: now.toISOString(),
       status: "active",
