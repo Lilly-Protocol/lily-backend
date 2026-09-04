@@ -29,6 +29,17 @@ export const createApp = () => {
   app.use(
     pinoHttp({
       logger,
+      customSuccessMessage(_req, res) {
+        return `${res.statusCode} ${_req.method} ${_req.url}`;
+      },
+      serializers: {
+        res(res) {
+          return {
+            statusCode: res.statusCode,
+            responseTime: res.responseTime,
+          };
+        },
+      },
       customLogLevel(_request, response, error) {
         if (error || response.statusCode >= 500) {
           return "error";
