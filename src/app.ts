@@ -12,6 +12,10 @@ import {
   methodNotAllowedHandler,
   notFoundHandler,
 } from "./common/http/not-found.middleware";
+import {
+  getOrGenerateRequestId,
+  requestIdMiddleware,
+} from "./common/http/request-id.middleware";
 import { corsOptions } from "./config/cors";
 import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
@@ -68,10 +72,12 @@ export const createApp = (): express.Express => {
   app.use(compression());
   app.use(express.json({ limit: securityConfig.bodySizeLimit }));
   app.use(express.urlencoded({ extended: true }));
+  app.use(requestIdMiddleware);
   app.use(cacheControlNoStore);
   app.use(
     pinoHttp({
       logger,
+      genReqId: (req) => getOrGenerateRequestId(req),
       autoLogging: { ignore: shouldIgnoreRequestLog },
       customLogLevel(_request, response, error) {
         if (error || response.statusCode >= 500) {
