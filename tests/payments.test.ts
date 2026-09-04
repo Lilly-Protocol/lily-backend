@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeAmount, quoteSchema } from "../src/modules/payments/payments.schema";
+import {
+  createQuoteSchema,
+  normalizeAmount,
+  quoteSchema,
+} from "../src/modules/payments/payments.schema";
 
 describe("normalizeAmount", () => {
   it("strips leading zeros from integer part", () => {
@@ -30,16 +34,50 @@ describe("normalizeAmount", () => {
 
 describe("quoteSchema", () => {
   it("normalizes amount on parse", () => {
-    const result = quoteSchema.parse({ amount: "007.00" });
+    const result = quoteSchema.parse({
+      assetCode: "USDC",
+      amount: "007.00",
+      destination: "GABC123",
+    });
     expect(result.amount).toBe("7.00");
   });
 
-  it("applies default currency when omitted", () => {
-    const result = quoteSchema.parse({ amount: "10.00" });
-    expect(result.currency).toBe("USD");
+  it("trims and validates destination", () => {
+    const result = quoteSchema.parse({
+      assetCode: "USDC",
+      amount: "10.00",
+      destination: "  GABC123  ",
+    });
+    expect(result.destination).toBe("GABC123");
   });
 
   it("rejects empty amount", () => {
-    expect(() => quoteSchema.parse({ amount: "" })).toThrow();
+    expect(() =>
+      quoteSchema.parse({
+        assetCode: "USDC",
+        amount: "",
+        destination: "GABC123",
+      }),
+    ).toThrow();
+  });
+});
+
+describe("createQuoteSchema", () => {
+  it("normalizes sourceAmount on parse", () => {
+    const result = createQuoteSchema.parse({
+      sourceAsset: "USDC",
+      destinationAsset: "XLM",
+      sourceAmount: "007.00",
+    });
+    expect(result.sourceAmount).toBe("7.00");
+  });
+
+  it("rejects missing assets", () => {
+    expect(() =>
+      createQuoteSchema.parse({
+        sourceAsset: "USDC",
+        sourceAmount: "10.00",
+      }),
+    ).toThrow();
   });
 });

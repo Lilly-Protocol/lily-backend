@@ -36,7 +36,7 @@ export const getQuote = asyncHandler(
       ApiSuccessResponse<ReturnType<typeof paymentsService.getQuoteById>>
     >,
   ) => {
-    const result = paymentsService.getQuoteById(request.params.id);
+    const result = paymentsService.getQuoteById(request.params.id as string);
 
     response.status(200).json({ success: true, data: result });
   },
