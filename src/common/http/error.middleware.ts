@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { AppError } from "@/common/http/app-error";
+import { sanitizeRequestUrl } from "@/common/http/request-logger";
 import { env } from "@/config/env";
 import { logger } from "@/config/logger";
 
@@ -74,7 +75,7 @@ export const errorHandler = (
     {
       err: error,
       method: request.method,
-      path: request.originalUrl,
+      path: sanitizeRequestUrl(request.originalUrl ?? request.url ?? ""),
       statusCode,
     },
     "Request failed",

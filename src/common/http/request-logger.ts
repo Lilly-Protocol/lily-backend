@@ -1,6 +1,6 @@
 import type { SerializedRequest } from "pino-std-serializers";
 
-const REDACTED = "[Redacted]";
+const REDACTED = "[REDACTED]";
 
 const sensitiveQueryKeys = new Set([
   "access_token",
@@ -16,6 +16,7 @@ const sensitiveQueryKeys = new Set([
   "private_key",
   "refresh_token",
   "secret",
+  "seed",
   "session",
   "signature",
   "sig",
@@ -25,10 +26,14 @@ const sensitiveQueryKeys = new Set([
 
 const normalizeQueryKey = (key: string) => key.toLowerCase().replace(/-/g, "_");
 
-export const sanitizeRequestUrl = (requestUrl: string) => {
-  const [pathname, query = ""] = requestUrl.split("?", 2);
+export const sanitizeRequestUrl = (requestUrl: string): string => {
+  if (!requestUrl) {
+    return "";
+  }
 
-  if (!query) {
+  const [pathname, query] = requestUrl.split("?", 2);
+
+  if (query === undefined || query === "") {
     return pathname;
   }
 
@@ -42,7 +47,8 @@ export const sanitizeRequestUrl = (requestUrl: string) => {
     );
   }
 
-  return `${pathname}?${sanitizedParams.toString()}`;
+  const serializedQuery = sanitizedParams.toString();
+  return serializedQuery ? `${pathname}?${serializedQuery}` : pathname;
 };
 
 export const serializeRequest = (request: SerializedRequest) => ({
