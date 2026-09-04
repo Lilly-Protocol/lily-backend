@@ -10,7 +10,7 @@ describe("request log sanitization", () => {
         "/api/v1/agents?owner=alice&api-key=secret-value&limit=10&token=abc",
       ),
     ).toBe(
-      "/api/v1/agents?owner=alice&api-key=%5BRedacted%5D&limit=10&token=%5BRedacted%5D",
+      "/api/v1/agents?owner=alice&api-key=%5BREDACTED%5D&limit=10&token=%5BREDACTED%5D",
     );
   });
 
@@ -30,7 +30,7 @@ describe("request log sanitization", () => {
     expect(serializeRequest(request)).toEqual({
       id: "request-1",
       method: "GET",
-      url: "/api/v1/agents?authorization=%5BRedacted%5D",
+      url: "/api/v1/agents?authorization=%5BREDACTED%5D",
       remoteAddress: "127.0.0.1",
       remotePort: 4000,
     });
