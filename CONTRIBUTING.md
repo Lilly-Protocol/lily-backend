@@ -10,13 +10,13 @@ Thanks for considering a contribution to Lily Protocol.
 
 ## Quality checks
 
-Before opening a pull request, run:
+Before opening a pull request, run the same pipeline as CI:
 
 ```bash
-npm run lint
-npm run build
-npm run test
+npm run check
 ```
+
+This executes lint, typecheck, production dependency audit, build, and test coverage in order. If any stage fails, the command exits non-zero so you can fix it before submitting.
 
 ## Contribution guidelines
 
