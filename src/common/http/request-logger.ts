@@ -1,8 +1,9 @@
+import type { IncomingMessage } from "node:http";
 import type { SerializedRequest } from "pino-std-serializers";
 
-const REDACTED = "[Redacted]";
+export const REDACTED = "[REDACTED]";
 
-const sensitiveQueryKeys = new Set([
+export const sensitiveQueryKeys = new Set([
   "access_token",
   "api_key",
   "apikey",
@@ -16,6 +17,7 @@ const sensitiveQueryKeys = new Set([
   "private_key",
   "refresh_token",
   "secret",
+  "seed",
   "session",
   "signature",
   "sig",
@@ -23,10 +25,15 @@ const sensitiveQueryKeys = new Set([
   "wallet_seed",
 ]);
 
-const normalizeQueryKey = (key: string) => key.toLowerCase().replace(/-/g, "_");
+export const normalizeQueryKey = (key: string): string =>
+  key.toLowerCase().replace(/-/g, "_");
 
-export const sanitizeRequestUrl = (requestUrl: string) => {
-  const [pathname, query = ""] = requestUrl.split("?", 2);
+export const sanitizeRequestUrl = (requestUrl: string): string => {
+  if (!requestUrl) {
+    return "";
+  }
+
+  const [pathname = "", query = ""] = requestUrl.split("?", 2);
 
   if (!query) {
     return pathname;
@@ -45,10 +52,30 @@ export const sanitizeRequestUrl = (requestUrl: string) => {
   return `${pathname}?${sanitizedParams.toString()}`;
 };
 
-export const serializeRequest = (request: SerializedRequest) => ({
+export interface LoggableRequest {
+  id?: unknown;
+  method?: string;
+  url?: string;
+  remoteAddress?: string;
+  remotePort?: number;
+  socket?: {
+    remoteAddress?: string;
+    remotePort?: number;
+  };
+}
+
+export const serializeRequest = (
+  request: LoggableRequest | IncomingMessage | SerializedRequest,
+) => ({
   id: request.id,
   method: request.method,
-  url: sanitizeRequestUrl(request.url),
-  remoteAddress: request.remoteAddress,
-  remotePort: request.remotePort,
+  url: sanitizeRequestUrl(request.url ?? ""),
+  remoteAddress:
+    "socket" in request && request.socket?.remoteAddress
+      ? request.socket.remoteAddress
+      : (request as SerializedRequest).remoteAddress,
+  remotePort:
+    "socket" in request && request.socket?.remotePort
+      ? request.socket.remotePort
+      : (request as SerializedRequest).remotePort,
 });
