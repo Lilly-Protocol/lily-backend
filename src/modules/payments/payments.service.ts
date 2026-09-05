@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { AppError } from "../../common/http/app-error";
 import type {
   CreateQuoteInput,
@@ -15,11 +16,11 @@ const quotesStore = new Map<string, Quote>();
 const paymentsStore: PaymentRecord[] = [];
 
 const generateQuoteId = (): string => {
-  return `quote_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return `quote_${crypto.randomUUID()}`;
 };
 
 const generatePaymentId = (): string => {
-  return `pay_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return `pay_${crypto.randomUUID()}`;
 };
 
 /**
@@ -56,113 +57,98 @@ export const applyStubFee = (amount: string): string => {
     return `${sign}${big.toString()}`;
   }
 
-  const padded = big.toString().padStart(scale + 1, "0");
-  const intResult = padded.slice(0, padded.length - scale);
-  const fracResult = padded.slice(-scale);
-
-  return `${sign}${intResult}.${fracResult}`;
+  const s = big.toString().padStart(scale + 1, "0");
+  const intStr = s.slice(0, s.length - scale);
+  const fracStr = s.slice(s.length - scale);
+  return `${sign}${intStr}.${fracStr}`;
 };
 
-const computeDestinationAmount = (sourceAmount: string): string => {
-  const amount = parseFloat(sourceAmount);
-  if (Number.isNaN(amount)) return "0";
-  const rate = "1.0002";
-  const dest = amount * parseFloat(rate);
-  return dest.toFixed(6);
+export const createQuote = (input: CreateQuoteInput): CreateQuoteResponse => {
+  const quoteId = generateQuoteId();
+  const feeAmount = applyStubFee(input.sourceAmount);
+  const expiresAt = new Date(Date.now() + QUOTE_TTL_MS).toISOString();
+
+  const quote: Quote = {
+    quoteId,
+    sourceAsset: input.sourceAsset,
+    sourceAmount: input.sourceAmount,
+    destinationAsset: input.destinationAsset,
+    destinationAmount: input.sourceAmount,
+    feeAmount,
+    expiresAt,
+    createdAt: new Date().toISOString(),
+  };
+
+  quotesStore.set(quoteId, quote);
+
+  return {
+    quoteId: quote.quoteId,
+    sourceAsset: quote.sourceAsset,
+    sourceAmount: quote.sourceAmount,
+    destinationAsset: quote.destinationAsset,
+    destinationAmount: quote.destinationAmount,
+    feeAmount: quote.feeAmount,
+    expiresAt: quote.expiresAt,
+  };
 };
 
-const computeFee = (sourceAmount: string): string => {
-  const amount = parseFloat(sourceAmount);
-  if (Number.isNaN(amount)) return "0";
-  const fee = amount * 0.001;
-  return fee.toFixed(6);
-};
+export const getQuote = (quoteId: string): GetQuoteResponse => {
+  const quote = quotesStore.get(quoteId);
 
-const refreshExpiry = (quote: Quote): void => {
-  if (Date.now() >= new Date(quote.expiresAt).getTime()) {
-    quote.status = "expired";
+  if (!quote) {
+    throw new AppError(404, `Quote '${quoteId}' was not found`);
   }
+
+  if (new Date(quote.expiresAt).getTime() <= Date.now()) {
+    quotesStore.delete(quoteId);
+    throw new AppError(410, `Quote '${quoteId}' has expired`);
+  }
+
+  return {
+    quoteId: quote.quoteId,
+    sourceAsset: quote.sourceAsset,
+    sourceAmount: quote.sourceAmount,
+    destinationAsset: quote.destinationAsset,
+    destinationAmount: quote.destinationAmount,
+    feeAmount: quote.feeAmount,
+    expiresAt: quote.expiresAt,
+  };
 };
 
-export const paymentsService = {
-  createQuote(input: CreateQuoteInput): CreateQuoteResponse {
-    const now = new Date();
-    const quote: Quote = {
-      id: generateQuoteId(),
-      sourceAsset: input.sourceAsset,
-      destinationAsset: input.destinationAsset,
-      sourceAmount: input.sourceAmount,
-      destinationAmount: computeDestinationAmount(input.sourceAmount),
-      fee: computeFee(input.sourceAmount),
-      rate: "1.0002",
-      expiresAt: new Date(now.getTime() + QUOTE_TTL_MS).toISOString(),
-      createdAt: now.toISOString(),
-      status: "active",
-    };
+export const executePayment = (
+  input: ExecutePaymentInput,
+): ExecutePaymentResponse => {
+  const quote = getQuote(input.quoteId);
+  const paymentId = generatePaymentId();
 
-    quotesStore.set(quote.id, quote);
+  const paymentRecord: PaymentRecord = {
+    paymentId,
+    quoteId: quote.quoteId,
+    senderWallet: input.senderWallet,
+    recipientWallet: input.recipientWallet,
+    sourceAsset: quote.sourceAsset,
+    sourceAmount: quote.sourceAmount,
+    destinationAsset: quote.destinationAsset,
+    destinationAmount: quote.destinationAmount,
+    feeAmount: quote.feeAmount,
+    status: "completed",
+    createdAt: new Date().toISOString(),
+  };
 
-    return { quote };
-  },
+  paymentsStore.push(paymentRecord);
+  quotesStore.delete(input.quoteId);
 
-  getQuoteById(id: string): GetQuoteResponse {
-    const quote = quotesStore.get(id);
-
-    if (!quote) {
-      throw new AppError(404, "Quote not found");
-    }
-
-    refreshExpiry(quote);
-
-    if (quote.status === "expired") {
-      throw new AppError(410, "Quote has expired");
-    }
-
-    return { quote };
-  },
-
-  executePayment(input: ExecutePaymentInput): ExecutePaymentResponse {
-    const quote = quotesStore.get(input.quoteId);
-
-    if (!quote) {
-      throw new AppError(404, "Quote not found");
-    }
-
-    refreshExpiry(quote);
-
-    if (quote.status === "expired") {
-      throw new AppError(410, "Quote has expired");
-    }
-
-    if (quote.status === "executed") {
-      throw new AppError(409, "Quote has already been executed");
-    }
-
-    if (!input.confirmed) {
-      throw new AppError(400, "Payment must be confirmed");
-    }
-
-    const payment: PaymentRecord = {
-      id: generatePaymentId(),
-      quoteId: quote.id,
-      sourceAsset: quote.sourceAsset,
-      destinationAsset: quote.destinationAsset,
-      sourceAmount: quote.sourceAmount,
-      destinationAmount: quote.destinationAmount,
-      fee: quote.fee,
-      rate: quote.rate,
-      status: "settled",
-      createdAt: new Date().toISOString(),
-    };
-
-    paymentsStore.push(payment);
-    quote.status = "executed";
-
-    return { payment };
-  },
-
-  reset(): void {
-    quotesStore.clear();
-    paymentsStore.splice(0, paymentsStore.length);
-  },
+  return {
+    paymentId: paymentRecord.paymentId,
+    quoteId: paymentRecord.quoteId,
+    senderWallet: paymentRecord.senderWallet,
+    recipientWallet: paymentRecord.recipientWallet,
+    sourceAsset: paymentRecord.sourceAsset,
+    sourceAmount: paymentRecord.sourceAmount,
+    destinationAsset: paymentRecord.destinationAsset,
+    destinationAmount: paymentRecord.destinationAmount,
+    feeAmount: paymentRecord.feeAmount,
+    status: paymentRecord.status,
+    completedAt: paymentRecord.createdAt,
+  };
 };
