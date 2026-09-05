@@ -20,6 +20,9 @@ const amountString = z
   .string()
   .trim()
   .min(1)
+  .regex(/^\d+(\.\d{1,7})?$/, {
+    message: "Amount must be a positive decimal number with at most 7 decimals",
+  })
   .transform((value) => normalizeAmount(value));
 
 /**
@@ -35,10 +38,18 @@ export const stellarAssetCodeSchema = z
     message: "Asset code must be 1-12 alphanumeric characters (e.g. USDC, XLM)",
   });
 
+export const currencyCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Z]{3}$/, {
+    message: "Currency must be exactly 3 uppercase letters (e.g. USD)",
+  });
+
 export const quoteSchema = z.object({
   assetCode: stellarAssetCodeSchema,
   amount: amountString,
   destination: z.string().trim().min(1),
+  currency: currencyCodeSchema.optional(),
 });
 
 export type QuoteInput = z.input<typeof quoteSchema>;
@@ -52,5 +63,6 @@ export const createQuoteSchema = z.object({
 
 export const executePaymentSchema = z.object({
   quoteId: z.string().trim().min(1),
-  confirmed: z.boolean(),
+  senderWallet: z.string().trim().min(1),
+  recipientWallet: z.string().trim().min(1),
 });
