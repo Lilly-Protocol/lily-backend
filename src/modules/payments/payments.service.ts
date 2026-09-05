@@ -11,6 +11,7 @@ import type {
 } from "./payments.types";
 
 const QUOTE_TTL_MS = 5 * 60 * 1000;
+const MAX_IN_MEMORY_QUOTES = 5_000;
 
 const quotesStore = new Map<string, Quote>();
 const paymentsStore: PaymentRecord[] = [];
@@ -23,11 +24,6 @@ const generatePaymentId = (): string => {
   return `pay_${crypto.randomUUID()}`;
 };
 
-/**
- * Applies a one-percent fee to an amount string using exact decimal
- * arithmetic (the decimal point is shifted two places left) so large and
- * high-precision amounts are not distorted by floating point rounding.
- */
 export const applyStubFee = (amount: string): string => {
   const trimmed = amount.trim();
   if (!trimmed || trimmed === "0" || trimmed === "-0") {
@@ -63,7 +59,28 @@ export const applyStubFee = (amount: string): string => {
   return `${sign}${intStr}.${fracStr}`;
 };
 
+export const sweepExpiredQuotes = (): number => {
+  const now = Date.now();
+  let evicted = 0;
+  for (const [id, quote] of quotesStore.entries()) {
+    if (new Date(quote.expiresAt).getTime() <= now) {
+      quotesStore.delete(id);
+      evicted++;
+    }
+  }
+  return evicted;
+};
+
 export const createQuote = (input: CreateQuoteInput): CreateQuoteResponse => {
+  sweepExpiredQuotes();
+
+  if (quotesStore.size >= MAX_IN_MEMORY_QUOTES) {
+    const oldestKey = quotesStore.keys().next().value;
+    if (oldestKey) {
+      quotesStore.delete(oldestKey);
+    }
+  }
+
   const quoteId = generateQuoteId();
   const feeAmount = applyStubFee(input.sourceAmount);
   const expiresAt = new Date(Date.now() + QUOTE_TTL_MS).toISOString();
@@ -151,4 +168,16 @@ export const executePayment = (
     status: paymentRecord.status,
     completedAt: paymentRecord.createdAt,
   };
+};
+
+export const paymentsService = {
+  createQuote,
+  getQuote,
+  executePayment,
+  applyStubFee,
+  sweepExpiredQuotes,
+  reset: (): void => {
+    quotesStore.clear();
+    paymentsStore.length = 0;
+  },
 };
