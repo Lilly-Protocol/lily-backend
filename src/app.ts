@@ -69,13 +69,16 @@ export const createApp = (): express.Express => {
   app.use(express.json({ limit: securityConfig.bodySizeLimit }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cacheControlNoStore);
-  app.use(
-    pinoHttp({
-      logger,
-      autoLogging: { ignore: shouldIgnoreRequestLog },
-      customLogLevel(_request, response, error) {
-        if (error || response.statusCode >= 500) {
-          return "error";
+import { randomUUID } from "node:crypto";
+
+ app.use(
+   pinoHttp({
+     logger,
+     autoLogging: { ignore: shouldIgnoreRequestLog },
+     genReqId: (req) => req.headers['x-request-id'] || randomUUID(),
+     customLogLevel(_request, response, error) {
+       if (error || response.statusCode >= 500) {
+         return "error";
         }
 
         if (response.statusCode >= 400) {
@@ -88,9 +91,16 @@ export const createApp = (): express.Express => {
         req: serializeRequestLog as never,
       },
     }),
-  );
+ );
 
-  app.get("/", (_request, response) => {
+ // Middleware to set X-Request-Id on every response
+ app.use((req, res, next) => {
+   const requestId = req.id; // pino-http attaches this via genReqId
+   res.setHeader('X-Request-Id', requestId);
+   next();
+ });
+
+ app.get("/", (_request, response) => {
     response.status(200).json({
       success: true,
       message: `${env.APP_NAME} is running`,
