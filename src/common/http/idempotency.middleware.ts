@@ -35,11 +35,13 @@ export const idempotencyKeyMiddleware = (
 
   const originalJson = res.json.bind(res);
   res.json = ((body: unknown) => {
-    store.set(key, {
-      response: body,
-      statusCode: res.statusCode,
-      createdAt: Date.now(),
-    });
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      store.set(key, {
+        response: body,
+        statusCode: res.statusCode,
+        createdAt: Date.now(),
+      });
+    }
     return originalJson(body);
   }) as typeof res.json;
 
