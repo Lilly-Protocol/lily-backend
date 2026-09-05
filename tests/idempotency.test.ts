@@ -115,4 +115,51 @@ describe("Idempotency-Key middleware", () => {
       .set("Idempotency-Key", "key-get")
       .expect(200);
   });
+
+  it("does not cache 4xx error responses and allows retry with corrected payload (issue #284)", async () => {
+    const key = "key-err-retry-001";
+    const badPayload = {
+      name: "x",
+      description: "too short",
+      capabilities: [],
+    };
+    const validPayload = {
+      name: "Valid Agent",
+      description: "A valid agent description for retry test",
+      capabilities: ["testing"],
+    };
+
+    // First attempt fails schema validation with 400
+    const errRes = await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", key)
+      .send(badPayload)
+      .expect(400);
+
+    expect(errRes.body.success).toBe(false);
+
+    // Second attempt with SAME key and valid payload succeeds with 201
+    const successRes = await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", key)
+      .send(validPayload)
+      .expect(201);
+
+    expect(successRes.body.success).toBe(true);
+    expect(successRes.body.data.agent.name).toBe("Valid Agent");
+
+    // Third attempt with SAME key replays cached 201 response
+    const replayRes = await request(app)
+      .post("/api/v1/agents")
+      .set("Idempotency-Key", key)
+      .send(validPayload)
+      .expect(201);
+
+    expect(replayRes.body).toEqual(successRes.body);
+    expect(replayRes.body.data.agent.id).toBe(successRes.body.data.agent.id);
+
+    // Verify only 1 agent was created (plus 1 seed agent = 2 total)
+    const listRes = await request(app).get("/api/v1/agents").expect(200);
+    expect(listRes.body.data.total).toBe(2);
+  });
 });
