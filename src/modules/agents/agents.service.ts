@@ -32,8 +32,19 @@ export const agentsService = {
 
   createAgent: (input: CreateAgentInput): Agent => {
     const now = new Date().toISOString();
-    const slug = input.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    let slug = input.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    if (!slug) {
+      slug = Buffer.from(input.name).toString("hex").toUpperCase();
+    }
     const walletAddress = `G${slug.padEnd(55, "0").slice(0, 55)}`;
+
+    const collision = agents.find((a) => a.walletAddress === walletAddress);
+    if (collision && collision.name !== input.name) {
+      throw new AppError(
+        409,
+        `An agent with conflicting wallet address identifier already exists (${collision.id})`
+      );
+    }
 
     const agent: Agent = {
       id: `agentlily_${agentSequence++}`,
@@ -52,30 +63,6 @@ export const agentsService = {
 
     agents.push(agent);
     return agent;
-  },
-
-  updateAgentStatus: (id: string, status: AgentStatus): { agent: Agent } => {
-    const agent = agents.find((candidate) => candidate.id === id);
-
-    if (!agent) {
-      throw new AppError(404, "Agent not found");
-    }
-
-    agent.status = status;
-    agent.updatedAt = new Date().toISOString();
-
-    return { agent };
-  },
-
-  deleteAgent: (id: string): boolean => {
-    const index = agents.findIndex((agent) => agent.id === id);
-
-    if (index === -1) {
-      return false;
-    }
-
-    agents.splice(index, 1);
-    return true;
   },
 
   reset: (): void => {
