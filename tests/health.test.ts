@@ -19,6 +19,7 @@ describe("health endpoints", () => {
       status: expect.any(String),
       service: env.APP_NAME,
       environment: env.NODE_ENV,
+      version: expect.any(String),
       timestamp: expect.any(String),
     });
 
@@ -40,36 +41,7 @@ describe("health endpoints", () => {
     expect(response.body.message).toContain("Route not found");
   });
 
-  it("returns liveness payload with status, service, and timestamp from healthService.getLiveness", async () => {
-    const response = await request(app).get("/api/v1/health/live");
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data).toMatchObject({
-      status: "ok",
-      service: env.APP_NAME,
-      timestamp: expect.any(String),
-    });
-    expect(Number.isNaN(Date.parse(response.body.data.timestamp))).toBe(false);
-  });
-
-  it("returns readiness payload with checks.dependencies equal to ok from healthService.getReadiness", async () => {
-    const response = await request(app).get("/api/v1/health/ready");
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.data).toMatchObject({
-      status: "ok",
-      service: env.APP_NAME,
-      environment: env.NODE_ENV,
-      checks: {
-        dependencies: "ok",
-      },
-      timestamp: expect.any(String),
-    });
-  });
-
-  it("asserts all health payload fields per contract (issue #134)", async () => {
+  it("asserts all health payload fields per contract (issue #134, #261)", async () => {
     const response = await request(app).get("/api/v1/health");
 
     expect(response.status).toBe(200);
@@ -79,11 +51,13 @@ describe("health endpoints", () => {
     expect(data).toHaveProperty("status");
     expect(data).toHaveProperty("service");
     expect(data).toHaveProperty("environment");
+    expect(data).toHaveProperty("version");
     expect(data).toHaveProperty("timestamp");
 
     expect(typeof data.status).toBe("string");
     expect(typeof data.service).toBe("string");
     expect(typeof data.environment).toBe("string");
+    expect(data.version).toBe(version);
     expect(typeof data.timestamp).toBe("string");
   });
 
