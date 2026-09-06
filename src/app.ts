@@ -17,6 +17,7 @@ import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { shouldIgnoreRequestLog } from "./config/request-logging";
+import { serializeResponse } from "./common/http/request-logger";
 import { apiRouter } from "./routes";
 
 const sensitiveQueryKeys = [
@@ -73,17 +74,7 @@ export const createApp = (): express.Express => {
     pinoHttp({
       logger,
       autoLogging: { ignore: shouldIgnoreRequestLog },
-      customLogLevel(request, response, error) {
-        const hasHandledError =
-          Boolean(
-            (response as { locals?: { errorHandled?: boolean } }).locals
-              ?.errorHandled,
-          ) || Boolean((request as { _errorHandled?: boolean })?._errorHandled);
-
-        if (hasHandledError) {
-          return "info";
-        }
-
+      customLogLevel(_request, response, error) {
         if (error || response.statusCode >= 500) {
           return "error";
         }
@@ -96,6 +87,7 @@ export const createApp = (): express.Express => {
       },
       serializers: {
         req: serializeRequestLog as never,
+        res: serializeResponse as never,
       },
     }),
   );
