@@ -6,15 +6,7 @@ export interface ProcessMetrics {
     heapUsedBytes: number;
     externalBytes: number;
   };
-  eventLoopLag: {
-    minMs: number;
-    maxMs: number;
-    meanMs: number;
-    stddevMs: number;
-    p50Ms: number;
-    p90Ms: number;
-    p99Ms: number;
-  };
+  eventLoopLagMs: number;
   nodeVersion: string;
   environment: string;
   timestamp: string;

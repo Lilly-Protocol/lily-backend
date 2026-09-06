@@ -1,9 +1,26 @@
+import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
+
 import { env } from "../../config/env";
-import { monitorEventLoopDelay } from "node:perf_hooks";
 import type { ProcessMetrics } from "./metrics.types";
 
-const eldHistogram = monitorEventLoopDelay({ resolution: 10 });
-eldHistogram.enable();
+let histogram: IntervalHistogram | null = null;
+
+const getHistogram = (): IntervalHistogram => {
+  if (!histogram) {
+    histogram = monitorEventLoopDelay({ resolution: 20 });
+    histogram.enable();
+  }
+  return histogram;
+};
+
+export const getEventLoopLagMs = (): number => {
+  const h = getHistogram();
+  const mean = h.mean;
+  if (!Number.isFinite(mean) || mean <= 0) {
+    return 0;
+  }
+  return Number((mean / 1_000_000).toFixed(2));
+};
 
 export const metricsService = {
   getMetrics: (): ProcessMetrics => {
@@ -16,15 +33,7 @@ export const metricsService = {
         heapUsedBytes: memory.heapUsed,
         externalBytes: memory.external,
       },
-      eventLoopLag: {
-        minMs: eldHistogram.min / 1e6,
-        maxMs: eldHistogram.max / 1e6,
-        meanMs: eldHistogram.mean / 1e6,
-        stddevMs: eldHistogram.stddev / 1e6,
-        p50Ms: eldHistogram.percentile(50) / 1e6,
-        p90Ms: eldHistogram.percentile(90) / 1e6,
-        p99Ms: eldHistogram.percentile(99) / 1e6,
-      },
+      eventLoopLagMs: getEventLoopLagMs(),
       nodeVersion: process.version,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
