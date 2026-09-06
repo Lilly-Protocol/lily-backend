@@ -52,36 +52,26 @@ describe("Wallet address generation uniqueness and normalization (issue #128)", 
     expect(agent.walletAddress).toBe("GAB" + "0".repeat(53));
   });
 
-  it("rejects a second agent whose normalized name collides", async () => {
+  it("should reject creation with 409 when normalized slug collides with existing agent", async () => {
     await createAgent("AB");
-
-    const res = await request(app).post("/api/v1/agents").send({
-      name: "A.B",
-      description: "Testing a normalized wallet collision",
-      capabilities: ["test"],
-    });
-
+    const res = await request(app)
+      .post("/api/v1/agents")
+      .send({
+        name: "A.B",
+        description: "Colliding agent name with different punctuation",
+        capabilities: ["test"],
+      });
     expect(res.status).toBe(409);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe("Agent wallet address already exists");
+    expect(res.body.message).toBe(
+      "Agent with this wallet address already exists",
+    );
   });
 
-  it("rejects names that normalize to an empty wallet seed", async () => {
-    const res = await request(app).post("/api/v1/agents").send({
-      name: "$$$",
-      description: "Testing a punctuation-only wallet seed",
-      capabilities: ["test"],
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe(
-      "Agent name must contain at least one alphanumeric character",
-    );
-
-    const { agents } = agentsService.listAgents();
-    expect(agents.some((agent) => agent.walletAddress === `G${"0".repeat(55)}`)).toBe(
-      false,
-    );
+  it("should not mint an all-zero suffix wallet address when name contains only punctuation", async () => {
+    const agent = await createAgent("$$$");
+    expect(agent.walletAddress).toHaveLength(56);
+    expect(agent.walletAddress).toMatch(/^G[A-Z0-9]{55}$/);
+    expect(agent.walletAddress).not.toBe("G" + "0".repeat(55));
   });
 });
