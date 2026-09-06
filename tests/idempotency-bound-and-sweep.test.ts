@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app";
 import {
+  _getIdempotencyStoreSize,
+  _setIdempotencyConfig,
   clearIdempotencyStore,
-  configureIdempotencyStore,
-  getIdempotencyStoreSize,
   sweepExpiredEntries,
 } from "../src/common/http/idempotency.middleware";
 import { agentsService } from "../src/modules/agents/agents.service";
@@ -20,7 +20,7 @@ describe("Idempotency store bound and sweep (issue #288)", () => {
 
   it("evicts oldest entries when capacity limit is reached", async () => {
     // Set cap to 3 items
-    configureIdempotencyStore({ maxCapacity: 3 });
+    _setIdempotencyConfig({ maxEntries: 3 });
 
     for (let i = 1; i <= 4; i++) {
       await request(app)
@@ -34,7 +34,7 @@ describe("Idempotency store bound and sweep (issue #288)", () => {
         .expect(201);
     }
 
-    expect(getIdempotencyStoreSize()).toBe(3);
+    expect(_getIdempotencyStoreSize()).toBe(3);
 
     // key-1 should have been evicted (oldest-first)
     // Sending key-1 again creates a NEW agent rather than replaying
@@ -66,7 +66,7 @@ describe("Idempotency store bound and sweep (issue #288)", () => {
 
   it("proactively sweeps entries older than TTL", async () => {
     // Set TTL to 100ms
-    configureIdempotencyStore({ ttlMs: 100 });
+    _setIdempotencyConfig({ ttlMs: 100 });
 
     const startTime = 1_000_000;
     vi.spyOn(Date, "now").mockReturnValue(startTime);
@@ -81,12 +81,13 @@ describe("Idempotency store bound and sweep (issue #288)", () => {
       })
       .expect(201);
 
-    expect(getIdempotencyStoreSize()).toBe(1);
+    expect(_getIdempotencyStoreSize()).toBe(1);
 
     // Advance time past TTL
-    const evicted = sweepExpiredEntries(startTime + 150);
+    vi.spyOn(Date, "now").mockReturnValue(startTime + 150);
+    const evicted = sweepExpiredEntries();
     expect(evicted).toBe(1);
-    expect(getIdempotencyStoreSize()).toBe(0);
+    expect(_getIdempotencyStoreSize()).toBe(0);
 
     vi.restoreAllMocks();
   });

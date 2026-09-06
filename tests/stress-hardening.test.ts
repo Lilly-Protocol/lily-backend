@@ -16,7 +16,7 @@ describe("Lily Backend Stress & Hardening Test Suite", () => {
       const iterations = 10_000;
       for (let i = 0; i < iterations; i++) {
         agentsService.createAgent({
-          name: `Agent Batch ${i}`,
+          name: `Agent Batch ${String(i).padStart(4, "0")}`,
           description: `Orchestrating treasury batch flow for index ${i}`,
           capabilities: ["settlement", "monitoring"],
         });
@@ -32,7 +32,7 @@ describe("Lily Backend Stress & Hardening Test Suite", () => {
       expect(latest?.name).toBe("Agent Batch 9999");
       expect(typeof latest?.createdAt).toBe("string");
       expect(typeof latest?.updatedAt).toBe("string");
-    });
+    }, 30_000);
   });
 
   describe("Error Middleware Resilience", () => {

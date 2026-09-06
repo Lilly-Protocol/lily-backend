@@ -34,6 +34,8 @@ export const isOperationalPath = (
 
 /**
  * Predicate evaluating whether an incoming request should skip the API rate limiter.
+ * Requests are only skipped in test environments unless rate limiting is
+ * explicitly forced (ENABLE_RATE_LIMIT_TESTS or the x-test-rate-limit header).
  */
 export const shouldSkipApiRateLimit = (
   request: Request,
@@ -44,30 +46,19 @@ export const shouldSkipApiRateLimit = (
     process.env.ENABLE_RATE_LIMIT_TESTS === "true" ||
     request.headers?.["x-test-rate-limit"] === "true";
 
-  if (isTest && !forceRateLimit) {
+  // Outside of test environments the limiter is always enforced.
+  if (!isTest) {
+    return false;
+  }
+
+  // In test environments the limiter is skipped entirely unless it is
+  // explicitly forced, in which case operational endpoints (health probes,
+  // metrics) remain exempt so they can be used to observe limiter behavior.
+  if (!forceRateLimit) {
     return true;
   }
 
-  if (request.path && isOperationalPath(request.path, apiPrefix)) {
-    return true;
-  }
-
-  if (request.originalUrl) {
-    const originalPathname = new URL(request.originalUrl, "http://localhost")
-      .pathname;
-    if (isOperationalPath(originalPathname, apiPrefix)) {
-      return true;
-    }
-  }
-
-  if (request.url) {
-    const urlPathname = new URL(request.url, "http://localhost").pathname;
-    if (isOperationalPath(urlPathname, apiPrefix)) {
-      return true;
-    }
-  }
-
-  return false;
+  return isOperationalPath(request.path, apiPrefix);
 };
 
 /**
@@ -123,6 +114,6 @@ export const writeRateLimiter = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => process.env.NODE_ENV === "test" || isOperationalPath(req),
+  skip: (req) => process.env.NODE_ENV === "test" || isOperationalPath(req.path),
   handler: rateLimitHandler,
 });

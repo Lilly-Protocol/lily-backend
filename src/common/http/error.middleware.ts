@@ -94,12 +94,7 @@ export const errorHandler = (
     "Request failed",
   );
 
-  const code =
-    isAppError && error.code
-      ? error.code
-      : statusCode === 500
-        ? "INTERNAL_SERVER_ERROR"
-        : undefined;
+  const code = isAppError && error.code ? error.code : undefined;
 
   response.status(statusCode).json({
     success: false,

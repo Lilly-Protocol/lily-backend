@@ -49,14 +49,21 @@ describe("quoteSchema amount validation", () => {
 });
 
 describe("stellarAssetCodeSchema", () => {
-  it("accepts 1-12 alphanumeric codes", () => {
-    for (const code of ["USDC", "XLM", "a", "BTC", "ABCDEFGHIJKL"]) {
+  it("accepts 3-12 uppercase asset codes", () => {
+    for (const code of ["USDC", "XLM", "BRL", "BTC", "ABCDEFGHIJKL"]) {
       expect(stellarAssetCodeSchema.safeParse(code).success).toBe(true);
     }
   });
 
   it("rejects malformed currency codes", () => {
-    for (const code of ["USDC!", "a b", "TOOLONGASSETCODEX", "", "US_DC"]) {
+    for (const code of [
+      "USDC!",
+      "a b",
+      "TOOLONGASSETCODEX",
+      "",
+      "US_DC",
+      "usd",
+    ]) {
       expect(stellarAssetCodeSchema.safeParse(code).success).toBe(false);
     }
   });

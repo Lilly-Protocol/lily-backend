@@ -61,7 +61,10 @@ describe("Restrict agent capabilities to allowlist enum (issue #75)", () => {
         capabilities: ["payments", "payments", "settlement"],
       });
     expect(res.status).toBe(201);
-    expect(res.body.data.agent.capabilities).toEqual(["payments", "settlement"]);
+    expect(res.body.data.agent.capabilities).toEqual([
+      "payments",
+      "settlement",
+    ]);
   });
 
   it("GET /api/v1/agents returns only capabilityEnum values for the seed", async () => {
@@ -70,7 +73,10 @@ describe("Restrict agent capabilities to allowlist enum (issue #75)", () => {
     expect(res.body.success).toBe(true);
 
     const allowed = capabilityEnum.options;
-    const agents = res.body.data.agents as Array<{ id: string; capabilities: string[] }>;
+    const agents = res.body.data.agents as Array<{
+      id: string;
+      capabilities: string[];
+    }>;
 
     for (const agent of agents) {
       for (const capability of agent.capabilities) {
@@ -80,7 +86,11 @@ describe("Restrict agent capabilities to allowlist enum (issue #75)", () => {
 
     const seed = agents.find((agent) => agent.id === "agentlily_demo_001");
     expect(seed).toBeDefined();
-    expect(seed?.capabilities).toEqual(["settlement"]);
+    expect(seed?.capabilities).toEqual([
+      "settlement",
+      "rebalance",
+      "liquidity-monitoring",
+    ]);
   });
 
   it("GET /api/v1/agents returns only capabilityEnum values after creating an agent", async () => {

@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,6 +5,8 @@ import {
   multiplyExactDecimal,
   paymentsService,
 } from "../src/modules/payments/payments.service";
+
+const LARGE_SOURCE = "12345678901234567890123456789012345678901234567890";
 
 describe("applyStubFee", () => {
   it.each([

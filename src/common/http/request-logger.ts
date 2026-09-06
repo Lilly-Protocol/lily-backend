@@ -1,5 +1,8 @@
 import type { ServerResponse } from "node:http";
-import type { SerializedRequest, SerializedResponse } from "pino-std-serializers";
+import type {
+  SerializedRequest,
+  SerializedResponse,
+} from "pino-std-serializers";
 
 const REDACTED = "[Redacted]";
 
@@ -17,6 +20,7 @@ const sensitiveQueryKeys = new Set([
   "private_key",
   "refresh_token",
   "secret",
+  "seed",
   "session",
   "signature",
   "sig",
@@ -30,7 +34,7 @@ export const sanitizeRequestUrl = (requestUrl: string) => {
   const [pathname, query = ""] = requestUrl.split("?", 2);
 
   if (!query) {
-    return pathname;
+    return pathname ?? "";
   }
 
   const params = new URLSearchParams(query);
@@ -59,4 +63,3 @@ export const serializeResponse = (
 ) => ({
   statusCode: response.statusCode,
 });
-

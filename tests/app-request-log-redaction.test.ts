@@ -34,7 +34,7 @@ describe("app request log redaction (issue #272)", () => {
       await response.text();
 
       const allOutput = stdoutSpy.mock.calls
-        .map((call) => String(call[0] ?? ""))
+        .map((call: unknown[]) => String(call[0] ?? ""))
         .join("");
 
       expect(allOutput).not.toContain("leak");
@@ -65,7 +65,7 @@ describe("app request log redaction (issue #272)", () => {
       await response.text();
 
       const allOutput = stdoutSpy.mock.calls
-        .map((call) => String(call[0] ?? ""))
+        .map((call: unknown[]) => String(call[0] ?? ""))
         .join("");
 
       expect(allOutput).not.toContain("mnemonic-leak");

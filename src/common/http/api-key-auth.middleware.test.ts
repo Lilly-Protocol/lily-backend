@@ -14,38 +14,48 @@ vi.mock("../../config/logger", () => ({
 }));
 
 describe("apiKeyAuth constant-time comparison", () => {
-  let req: Partial<Request>;
-  let res: Partial<Response>;
+  const getMock = vi.fn<(name: string) => string | undefined>();
+  let req: Request;
+  let res: Response;
   let next: NextFunction;
 
   beforeEach(() => {
-    req = { get: vi.fn() };
-    res = {};
+    getMock.mockReset();
+    req = { get: getMock } as unknown as Request;
+    res = {} as Response;
     next = vi.fn();
   });
 
   it("accepts matching key", () => {
-    (req.get as any).mockReturnValue("test-secret-key-12345");
-    apiKeyAuth(req as Request, res as Response, next);
+    getMock.mockReturnValue("test-secret-key-12345");
+    apiKeyAuth(req, res, next);
     expect(next).toHaveBeenCalledWith();
-    expect(next).not.toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
+    expect(next).not.toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 403 }),
+    );
   });
 
   it("rejects wrong-length key with 403", () => {
-    (req.get as any).mockReturnValue("short");
-    apiKeyAuth(req as Request, res as Response, next);
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
+    getMock.mockReturnValue("short");
+    apiKeyAuth(req, res, next);
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 403 }),
+    );
   });
 
   it("rejects near-miss key with 403", () => {
-    (req.get as any).mockReturnValue("test-secret-key-12346");
-    apiKeyAuth(req as Request, res as Response, next);
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
+    getMock.mockReturnValue("test-secret-key-12346");
+    apiKeyAuth(req, res, next);
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 403 }),
+    );
   });
 
   it("rejects missing key with 401", () => {
-    (req.get as any).mockReturnValue(undefined);
-    apiKeyAuth(req as Request, res as Response, next);
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
+    getMock.mockReturnValue(undefined);
+    apiKeyAuth(req, res, next);
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 401 }),
+    );
   });
 });

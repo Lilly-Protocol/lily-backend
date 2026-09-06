@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { trustProxySchema } from "../../src/config/env";
+import { authApiKeyHeaderSchema, trustProxySchema } from "../../src/config/env";
 import { securityConfig } from "../../src/config/env";
 
 describe("AUTH_API_KEY env schema", () => {

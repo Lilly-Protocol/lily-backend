@@ -14,20 +14,30 @@ describe("Operational endpoint rate limit exemption (issue #285)", () => {
       limit,
       standardHeaders: true,
       legacyHeaders: false,
-      skip: (req) => isOperationalPath(req, prefix),
+      skip: (req) => isOperationalPath(req.path, prefix),
       handler: rateLimitHandler,
     });
 
     app.use(prefix, limiter);
 
     // Mock operational endpoints
-    app.get(`${prefix}/health`, (_req, res) => res.json({ success: true, status: "ok" }));
-    app.get(`${prefix}/health/live`, (_req, res) => res.json({ success: true, status: "live" }));
-    app.get(`${prefix}/health/ready`, (_req, res) => res.json({ success: true, status: "ready" }));
-    app.get(`${prefix}/metrics`, (_req, res) => res.json({ success: true, metrics: {} }));
+    app.get(`${prefix}/health`, (_req, res) =>
+      res.json({ success: true, status: "ok" }),
+    );
+    app.get(`${prefix}/health/live`, (_req, res) =>
+      res.json({ success: true, status: "live" }),
+    );
+    app.get(`${prefix}/health/ready`, (_req, res) =>
+      res.json({ success: true, status: "ready" }),
+    );
+    app.get(`${prefix}/metrics`, (_req, res) =>
+      res.json({ success: true, metrics: {} }),
+    );
 
     // Mock business endpoint
-    app.get(`${prefix}/agents`, (_req, res) => res.json({ success: true, data: [] }));
+    app.get(`${prefix}/agents`, (_req, res) =>
+      res.json({ success: true, data: [] }),
+    );
 
     return app;
   };

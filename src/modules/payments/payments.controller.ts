@@ -3,23 +3,14 @@ import type { z } from "zod";
 
 import { asyncHandler } from "../../common/http/async-handler";
 import type { ApiSuccessResponse } from "../../common/types/api-response";
-import type { createQuoteSchema, executePaymentSchema } from "./payments.schema";
+import type {
+  createQuoteSchema,
+  executePaymentSchema,
+} from "./payments.schema";
 import { paymentsService } from "./payments.service";
 
 type CreateQuoteBody = z.output<typeof createQuoteSchema>;
 type ExecutePaymentBody = z.output<typeof executePaymentSchema>;
-
-export const listPayments = (
-  _request: Request,
-  response: Response<
-    ApiSuccessResponse<ReturnType<typeof paymentsService.listPayments>>
-  >,
-): void => {
-  response.status(200).json({
-    success: true,
-    data: paymentsService.listPayments(),
-  });
-};
 
 export const createQuote = asyncHandler(
   async (

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { AppError } from "../../common/http/app-error";
 import type {
   CreateQuoteInput,
@@ -14,6 +13,8 @@ import type {
 const QUOTE_TTL_MS = 5 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 60 * 1000;
 const MAX_IN_MEMORY_QUOTES = 5_000;
+/** Stub on-chain exchange rate used when quoting. */
+const QUOTE_RATE = "1.0002";
 
 const quotesStore = new Map<string, Quote>();
 const paymentsStore: PaymentRecord[] = [];
@@ -83,7 +84,8 @@ const parseDecimal = (input: string): ParsedDecimal => {
   const negative = trimmed.startsWith("-");
   const unsigned = negative ? trimmed.slice(1) : trimmed;
   const [integerPart = "0", fractionalPart = ""] = unsigned.split(".");
-  const digits = `${integerPart || "0"}${fractionalPart}`.replace(/^0+(?=\d)/, "") || "0";
+  const digits =
+    `${integerPart || "0"}${fractionalPart}`.replace(/^0+(?=\d)/, "") || "0";
 
   return {
     value: (negative ? -1n : 1n) * BigInt(digits),
@@ -106,14 +108,19 @@ const formatDecimal = (value: bigint, scale: number): string => {
   const fractionalPart = digits.slice(-scale).replace(/0+$/, "");
   const sign = negative ? "-" : "";
 
-  return fractionalPart ? `${sign}${integerPart}.${fractionalPart}` : `${sign}${integerPart}`;
+  return fractionalPart
+    ? `${sign}${integerPart}.${fractionalPart}`
+    : `${sign}${integerPart}`;
 };
 
 const multiplyDecimal = (left: string, right: string): string => {
   const leftValue = parseDecimal(left);
   const rightValue = parseDecimal(right);
 
-  return formatDecimal(leftValue.value * rightValue.value, leftValue.scale + rightValue.scale);
+  return formatDecimal(
+    leftValue.value * rightValue.value,
+    leftValue.scale + rightValue.scale,
+  );
 };
 
 /**
@@ -275,7 +282,7 @@ export const paymentsService = {
     return { payment };
   },
 
-  listPayments(): { total: number; payments: PaymentRecord[] } {
+  listPayments(): ListPaymentsResponse {
     return {
       total: paymentsStore.length,
       payments: [...paymentsStore],

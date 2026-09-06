@@ -1,8 +1,16 @@
+import express from "express";
+import request from "supertest";
 import { describe, it, expect } from "vitest";
+
+import { paymentsRouter } from "../src/modules/payments/payments.routes";
 import {
-  stellarAssetCodeSchema,
+  createQuoteSchema,
+  executePaymentSchema,
   quoteSchema,
+  stellarAddressSchema,
+  stellarAssetCodeSchema,
 } from "../src/modules/payments/payments.schema";
+import { isValidStellarAddress } from "../src/modules/payments/stellar-address";
 
 describe("stellarAssetCodeSchema", () => {
   it("accepts valid 3-12 uppercase letter codes", () => {
@@ -235,7 +243,11 @@ describe("quoteSchema", () => {
 
 describe("amountString validation (via quoteSchema.amount)", () => {
   const parse = (v: string) =>
-    quoteSchema.safeParse({ assetCode: "USDC", amount: v, destination: "G" + "A".repeat(55) });
+    quoteSchema.safeParse({
+      assetCode: "USDC",
+      amount: v,
+      destination: "G" + "A".repeat(55),
+    });
 
   // Acceptance criteria: valid values
   it("accepts '7.50' and preserves normalized output", () => {
@@ -302,7 +314,11 @@ describe("amountString validation (via quoteSchema.amount)", () => {
 
 describe("assetCode validation (via quoteSchema.assetCode)", () => {
   const parse = (v: string) =>
-    quoteSchema.safeParse({ assetCode: v, amount: "100", destination: "G" + "A".repeat(55) });
+    quoteSchema.safeParse({
+      assetCode: v,
+      amount: "100",
+      destination: "G" + "A".repeat(55),
+    });
 
   // Acceptance criteria: accepts uppercase
   it("accepts 'USD' (uppercase)", () => {
@@ -322,7 +338,11 @@ describe("assetCode validation (via quoteSchema.assetCode)", () => {
 
 describe("amountString (via quoteSchema.amount)", () => {
   const parse = (v: string) =>
-    quoteSchema.safeParse({ assetCode: "USDC", amount: v, destination: "G" + "A".repeat(55) });
+    quoteSchema.safeParse({
+      assetCode: "USDC",
+      amount: v,
+      destination: "G" + "A".repeat(55),
+    });
 
   it("accepts a plain integer", () => {
     expect(parse("100").success).toBe(true);

@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
 
@@ -6,20 +7,24 @@ describe("POST /api/v1/payments", () => {
     const app = createApp();
     const res = await request(app)
       .post("/api/v1/payments")
-      .send({ sourceAsset: "USDC", destinationAsset: "BRL", sourceAmount: "100" });
+      .send({
+        sourceAsset: "USDC",
+        destinationAsset: "BRL",
+        sourceAmount: "100",
+      });
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toMatchObject({
+    expect(res.body.data.quote).toMatchObject({
       status: "active",
       sourceAsset: "USDC",
       destinationAsset: "BRL",
       sourceAmount: "100",
     });
-    expect(res.body.data).toHaveProperty("id");
-    expect(res.body.data).toHaveProperty("expiresAt");
-    expect(res.body.data).toHaveProperty("destinationAmount");
-    expect(res.body.data).toHaveProperty("fee");
-    expect(res.body.data).toHaveProperty("rate");
+    expect(res.body.data.quote).toHaveProperty("id");
+    expect(res.body.data.quote).toHaveProperty("expiresAt");
+    expect(res.body.data.quote).toHaveProperty("destinationAmount");
+    expect(res.body.data.quote).toHaveProperty("fee");
+    expect(res.body.data.quote).toHaveProperty("rate");
   });
 });
 
@@ -28,12 +33,16 @@ describe("GET /api/v1/payments/quotes/:id", () => {
     const app = createApp();
     const create = await request(app)
       .post("/api/v1/payments")
-      .send({ sourceAsset: "USDC", destinationAsset: "BRL", sourceAmount: "50" });
-    const id = create.body.data.id;
+      .send({
+        sourceAsset: "USDC",
+        destinationAsset: "BRL",
+        sourceAmount: "50",
+      });
+    const id = create.body.data.quote.id;
     const res = await request(app).get(`/api/v1/payments/quotes/${id}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.id).toBe(id);
+    expect(res.body.data.quote.id).toBe(id);
   });
 
   it("returns 404 for unknown quote", async () => {
@@ -48,10 +57,14 @@ describe("POST /api/v1/payments/execute", () => {
     const app = createApp();
     const create = await request(app)
       .post("/api/v1/payments")
-      .send({ sourceAsset: "USDC", destinationAsset: "BRL", sourceAmount: "10" });
+      .send({
+        sourceAsset: "USDC",
+        destinationAsset: "BRL",
+        sourceAmount: "10",
+      });
     const res = await request(app)
       .post("/api/v1/payments/execute")
-      .send({ quoteId: create.body.data.id, confirmed: false });
+      .send({ quoteId: create.body.data.quote.id, confirmed: false });
     expect(res.status).toBe(400);
   });
 
@@ -67,27 +80,37 @@ describe("POST /api/v1/payments/execute", () => {
     const app = createApp();
     const create = await request(app)
       .post("/api/v1/payments")
-      .send({ sourceAsset: "USDC", destinationAsset: "BRL", sourceAmount: "25" });
+      .send({
+        sourceAsset: "USDC",
+        destinationAsset: "BRL",
+        sourceAmount: "25",
+      });
+    const quoteId = create.body.data.quote.id;
     const res = await request(app)
       .post("/api/v1/payments/execute")
-      .send({ quoteId: create.body.data.id, confirmed: true });
+      .send({ quoteId, confirmed: true });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty("id");
-    expect(res.body.data.quoteId).toBe(create.body.data.id);
+    expect(res.body.data.payment).toHaveProperty("id");
+    expect(res.body.data.payment.quoteId).toBe(quoteId);
   });
 
   it("returns 409 when quote already executed", async () => {
     const app = createApp();
     const create = await request(app)
       .post("/api/v1/payments")
-      .send({ sourceAsset: "USDC", destinationAsset: "BRL", sourceAmount: "30" });
+      .send({
+        sourceAsset: "USDC",
+        destinationAsset: "BRL",
+        sourceAmount: "30",
+      });
+    const quoteId = create.body.data.quote.id;
     await request(app)
       .post("/api/v1/payments/execute")
-      .send({ quoteId: create.body.data.id, confirmed: true });
+      .send({ quoteId, confirmed: true });
     const res = await request(app)
       .post("/api/v1/payments/execute")
-      .send({ quoteId: create.body.data.id, confirmed: true });
+      .send({ quoteId, confirmed: true });
     expect(res.status).toBe(409);
   });
 });

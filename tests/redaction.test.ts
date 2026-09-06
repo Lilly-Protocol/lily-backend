@@ -47,8 +47,8 @@ describe("pino-http log redaction", () => {
     expect(resLog?.headers).toBeUndefined();
 
     // Sensitive keys redacted, safe param preserved
-    expect(reqLog?.url).toContain("api_key=%5BREDACTED%5D");
-    expect(reqLog?.url).toContain("seed=%5BREDACTED%5D");
+    expect(reqLog?.url).toContain("api_key=%5BRedacted%5D");
+    expect(reqLog?.url).toContain("seed=%5BRedacted%5D");
     expect(reqLog?.url).toContain("safe=value");
     expect(reqLog?.url).not.toContain("supersecret");
     expect(reqLog?.url).not.toContain("my-wallet-seed");

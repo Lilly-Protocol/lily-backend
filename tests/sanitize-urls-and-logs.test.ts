@@ -26,14 +26,14 @@ describe("Sanitize request URLs in error handling and access logs (issues #282 &
 
     expect(res.status).toBe(400);
     expect(warnSpy).toHaveBeenCalledOnce();
-    const logCallArg = warnSpy.mock.calls[0][0] as {
+    const logCallArg = warnSpy.mock.calls[0]![0]! as {
       method: string;
       path: string;
       statusCode: number;
     };
     expect(logCallArg.path).toContain("safe=visible");
-    expect(logCallArg.path).toContain("api_key=%5BREDACTED%5D");
-    expect(logCallArg.path).toContain("seed=%5BREDACTED%5D");
+    expect(logCallArg.path).toContain("api_key=%5BRedacted%5D");
+    expect(logCallArg.path).toContain("seed=%5BRedacted%5D");
     expect(logCallArg.path).not.toContain("secret-token");
     expect(logCallArg.path).not.toContain("super-secret-seed");
   });
@@ -47,7 +47,9 @@ describe("Sanitize request URLs in error handling and access logs (issues #282 &
 
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe("Route not found: GET /api/v1/non-existent-route");
+    expect(res.body.message).toBe(
+      "Route not found: GET /api/v1/non-existent-route",
+    );
     expect(res.body.message).not.toContain("api_key");
     expect(res.body.message).not.toContain("leak123");
     expect(res.body.message).not.toContain("seed123");
@@ -82,10 +84,10 @@ describe("Sanitize request URLs in error handling and access logs (issues #282 &
 
     const reqLog = logs[0]!.req;
     expect(reqLog?.url).toContain("sort=asc");
-    expect(reqLog?.url).toContain("API_KEY=%5BREDACTED%5D");
-    expect(reqLog?.url).toContain("Api-Key=%5BREDACTED%5D");
-    expect(reqLog?.url).toContain("access_token=%5BREDACTED%5D");
-    expect(reqLog?.url).toContain("sig=%5BREDACTED%5D");
+    expect(reqLog?.url).toContain("API_KEY=%5BRedacted%5D");
+    expect(reqLog?.url).toContain("Api-Key=%5BRedacted%5D");
+    expect(reqLog?.url).toContain("access_token=%5BRedacted%5D");
+    expect(reqLog?.url).toContain("sig=%5BRedacted%5D");
     expect(reqLog?.url).not.toContain("leak1");
     expect(reqLog?.url).not.toContain("leak2");
     expect(reqLog?.url).not.toContain("leak3");

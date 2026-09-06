@@ -70,6 +70,9 @@ describe("error handler log levels", () => {
       apiRouter.get("/test-error-500", (_request, _response, next) => {
         next(new Error("Server failure"));
       });
+      apiRouter.get("/test-ok", (_request, response) => {
+        response.status(200).json({ success: true });
+      });
     });
 
     afterEach(() => {
@@ -132,7 +135,7 @@ describe("error handler log levels", () => {
       const error = vi.spyOn(logger, "error").mockImplementation(() => logger);
       const info = vi.spyOn(logger, "info").mockImplementation(() => logger);
 
-      const response = await request(app).get("/api/v1/metrics");
+      const response = await request(app).get("/api/v1/test-ok");
 
       expect(response.status).toBe(200);
       expect(warn).not.toHaveBeenCalled();

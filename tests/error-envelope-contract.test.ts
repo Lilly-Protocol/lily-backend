@@ -58,11 +58,11 @@ describe("Error envelope contract (issue #278)", () => {
     assertErrorEnvelope(res.body, "NOT_FOUND", false);
   });
 
-  it("404 agent misses keep the shared envelope without a code (handler defines none)", async () => {
+  it("404 agent misses carry the handler-defined NOT_FOUND code", async () => {
     const res = await request(app).get("/api/v1/agents/agentlily_missing_id");
 
     expect(res.status).toBe(404);
-    assertErrorEnvelope(res.body, undefined, false);
+    assertErrorEnvelope(res.body, "NOT_FOUND", false);
   });
 
   it("405 method-not-allowed keeps the shared envelope", async () => {

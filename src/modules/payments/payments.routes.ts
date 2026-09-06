@@ -9,11 +9,16 @@ import {
   listPayments,
 } from "./payments.controller";
 import { createQuoteSchema, executePaymentSchema } from "./payments.schema";
-import { quoteIdParamsSchema } from "../agents/agents.schema";
 
 export const paymentsRouter = Router();
 
-paymentsRouter.post("/", apiKeyAuth, validateBody(createQuoteSchema), createQuote);
+paymentsRouter.post(
+  "/",
+  apiKeyAuth,
+  validateBody(createQuoteSchema),
+  createQuote,
+);
+paymentsRouter.get("/", apiKeyAuth, listPayments);
 paymentsRouter.get("/quotes/:id", getQuote);
 paymentsRouter.post(
   "/execute",

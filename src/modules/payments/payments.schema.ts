@@ -1,5 +1,6 @@
-import { StrKey } from "@stellar/stellar-sdk";
 import { z } from "zod";
+
+import { isValidStellarAddress } from "./stellar-address";
 
 /**
  * Normalizes a decimal amount string by stripping leading zeros
@@ -17,16 +18,19 @@ export const normalizeAmount = (val: string): string => {
   return intPart + decPart;
 };
 
-const decimalAmountRegex = /^\d+(\.\d{1,7})?$/;
-
 const amountString = z
   .string()
   .trim()
   .min(1)
-  .regex(/^\d+(\.\d+)?$/, {
+  .regex(/^\d+(\.\d{1,7})?$/, {
     message: "Amount must be a non-negative decimal number",
   })
   .transform((value) => normalizeAmount(value));
+
+const positiveAmountString = amountString.refine(
+  (value) => !/^0+(\.0*)?$/.test(value),
+  { message: "Amount must be greater than zero" },
+);
 
 /**
  * Stellar asset codes are 3-12 uppercase letters. "XLM" represents the
@@ -38,6 +42,26 @@ export const stellarAssetCodeSchema = z
   .regex(/^[A-Z]{3,12}$/, {
     message: "Asset code must be 3-12 uppercase letters (e.g. USDC, XLM)",
   });
+
+/**
+ * A Stellar account address (public key): a 56-character base32 string
+ * starting with "G" and guarded by a CRC16-XModem checksum.
+ */
+export const stellarAddressSchema = z
+  .string()
+  .trim()
+  .refine((value) => isValidStellarAddress(value), {
+    message: "Invalid Stellar account address",
+  });
+
+/**
+ * Assets may be identified by their asset code or, for path-payment style
+ * flows, a Stellar account address.
+ */
+export const stellarAssetOrAddressSchema = z.union([
+  stellarAssetCodeSchema,
+  stellarAddressSchema,
+]);
 
 export const currencySchema = z
   .string()
@@ -64,9 +88,9 @@ export type QuoteInput = z.input<typeof quoteSchema>;
 export type QuoteOutput = z.output<typeof quoteSchema>;
 
 export const createQuoteSchema = z.object({
-  sourceAsset: stellarAssetCodeSchema,
-  destinationAsset: stellarAssetCodeSchema,
-  sourceAmount: amountString,
+  sourceAsset: stellarAssetOrAddressSchema,
+  destinationAsset: stellarAssetOrAddressSchema,
+  sourceAmount: positiveAmountString,
 });
 
 export const executePaymentSchema = z.object({

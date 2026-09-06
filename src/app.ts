@@ -12,46 +12,28 @@ import {
   methodNotAllowedHandler,
   notFoundHandler,
 } from "./common/http/not-found.middleware";
+import { requestIdMiddleware } from "./common/http/request-id.middleware";
 import { corsOptions } from "./config/cors";
 import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { shouldIgnoreRequestLog } from "./config/request-logging";
-import { serializeResponse } from "./common/http/request-logger";
+import {
+  sanitizeRequestUrl,
+  serializeResponse,
+} from "./common/http/request-logger";
 import { apiRouter } from "./routes";
 
-const sensitiveQueryKeys = [
-  "api_key",
-  "apikey",
-  "key",
-  "token",
-  "secret",
-  "seed",
-  "wallet_seed",
-  "private_key",
-];
-
-const redactUrl = (url: string): string => {
-  try {
-    const parsed = new URL(url, "http://localhost");
-    let changed = false;
-    for (const key of sensitiveQueryKeys) {
-      if (parsed.searchParams.has(key)) {
-        parsed.searchParams.set(key, "[REDACTED]");
-        changed = true;
-      }
-    }
-    return changed ? `${parsed.pathname}${parsed.search}` : url;
-  } catch {
-    return url;
-  }
-};
-
-const serializeRequestLog = (request: IncomingMessage & { id?: unknown }) => ({
+const serializeRequestLog = (
+  request: IncomingMessage & {
+    id?: unknown;
+    raw?: { ip?: string };
+  },
+) => ({
   id: request.id,
   method: request.method,
-  url: redactUrl(request.url ?? ""),
-  remoteAddress: request.socket?.remoteAddress,
+  url: sanitizeRequestUrl(request.url ?? ""),
+  remoteAddress: request.raw?.ip ?? request.socket?.remoteAddress,
   remotePort: request.socket?.remotePort,
 });
 
@@ -60,6 +42,7 @@ export const createApp = (): express.Express => {
 
   app.disable("x-powered-by");
   app.set("trust proxy", securityConfig.trustProxy);
+  app.use(requestIdMiddleware);
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -74,17 +57,6 @@ export const createApp = (): express.Express => {
     pinoHttp({
       logger,
       autoLogging: { ignore: shouldIgnoreRequestLog },
-      customLogLevel(_request, response, error) {
-        if (error || response.statusCode >= 500) {
-          return "error";
-        }
-
-        if (response.statusCode >= 400) {
-          return "warn";
-        }
-
-        return "info";
-      },
       serializers: {
         req: serializeRequestLog as never,
         res: serializeResponse as never,
