@@ -17,6 +17,7 @@ import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { shouldIgnoreRequestLog } from "./config/request-logging";
+import { serializeResponse } from "./common/http/request-logger";
 import { apiRouter } from "./routes";
 
 const sensitiveQueryKeys = [
@@ -69,16 +70,13 @@ export const createApp = (): express.Express => {
   app.use(express.json({ limit: securityConfig.bodySizeLimit }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cacheControlNoStore);
-import { randomUUID } from "node:crypto";
-
- app.use(
-   pinoHttp({
-     logger,
-     autoLogging: { ignore: shouldIgnoreRequestLog },
-     genReqId: (req) => req.headers['x-request-id'] || randomUUID(),
-     customLogLevel(_request, response, error) {
-       if (error || response.statusCode >= 500) {
-         return "error";
+  app.use(
+    pinoHttp({
+      logger,
+      autoLogging: { ignore: shouldIgnoreRequestLog },
+      customLogLevel(_request, response, error) {
+        if (error || response.statusCode >= 500) {
+          return "error";
         }
 
         if (response.statusCode >= 400) {
@@ -89,18 +87,12 @@ import { randomUUID } from "node:crypto";
       },
       serializers: {
         req: serializeRequestLog as never,
+        res: serializeResponse as never,
       },
     }),
- );
+  );
 
- // Middleware to set X-Request-Id on every response
- app.use((req, res, next) => {
-   const requestId = req.id; // pino-http attaches this via genReqId
-   res.setHeader('X-Request-Id', requestId);
-   next();
- });
-
- app.get("/", (_request, response) => {
+  app.get("/", (_request, response) => {
     response.status(200).json({
       success: true,
       message: `${env.APP_NAME} is running`,
