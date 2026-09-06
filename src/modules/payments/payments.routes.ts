@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { apiKeyAuth } from "../../common/http/api-key-auth.middleware";
 import { validateBody } from "../../common/http/validate.middleware";
 import {
   createQuote,
@@ -11,7 +12,11 @@ import { createQuoteSchema, executePaymentSchema } from "./payments.schema";
 
 export const paymentsRouter = Router();
 
-paymentsRouter.get("/", listPayments);
-paymentsRouter.post("/", validateBody(createQuoteSchema), createQuote);
+paymentsRouter.post("/", apiKeyAuth, validateBody(createQuoteSchema), createQuote);
 paymentsRouter.get("/quotes/:id", getQuote);
-paymentsRouter.post("/execute", validateBody(executePaymentSchema), executePayment);
+paymentsRouter.post(
+  "/execute",
+  apiKeyAuth,
+  validateBody(executePaymentSchema),
+  executePayment,
+);

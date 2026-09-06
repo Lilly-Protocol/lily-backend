@@ -4,63 +4,69 @@ import request from "supertest";
 import { createApp } from "../src/app";
 import { paymentsService } from "../src/modules/payments/payments.service";
 
-const app = createApp();
+describe("GET /api/v1/payments (payments history - issue #279)", () => {
+  const app = createApp();
 
-const settlePayment = async () => {
-  const quoteResponse = await request(app).post("/api/v1/payments").send({
-    sourceAsset: "USDC",
-    destinationAsset: "XLM",
-    sourceAmount: "25",
-  });
-
-  expect(quoteResponse.status).toBe(201);
-
-  const executeResponse = await request(app)
-    .post("/api/v1/payments/execute")
-    .send({
-      quoteId: quoteResponse.body.data.quote.id,
-      confirmed: true,
-    });
-
-  expect(executeResponse.status).toBe(200);
-  return executeResponse.body.data.payment;
-};
-
-describe("GET /api/v1/payments history", () => {
   beforeEach(() => {
     paymentsService.reset();
   });
 
-  it("returns an empty history before any payment is executed", async () => {
-    const response = await request(app).get("/api/v1/payments");
+  it("returns 200 with empty payments list and total 0 when no payments have executed", async () => {
+    const res = await request(app).get("/api/v1/payments");
 
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
       success: true,
       data: {
-        payments: [],
         total: 0,
+        payments: [],
       },
     });
   });
 
-  it("returns settled payments after execution", async () => {
-    const payment = await settlePayment();
-    const response = await request(app).get("/api/v1/payments");
+  it("returns settled payment in payments history after execution with total === 1", async () => {
+    const quoteRes = await request(app).post("/api/v1/payments").send({
+      sourceAsset: "USDC",
+      destinationAsset: "XLM",
+      sourceAmount: "100.00",
+    });
+    expect(quoteRes.status).toBe(201);
+    const quoteId = quoteRes.body.data.quote.id;
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.total).toBe(1);
-    expect(response.body.data.payments).toEqual([payment]);
+    const execRes = await request(app).post("/api/v1/payments/execute").send({
+      quoteId,
+      confirmed: true,
+    });
+    expect(execRes.status).toBe(200);
+    const settledPayment = execRes.body.data.payment;
+
+    const historyRes = await request(app).get("/api/v1/payments");
+    expect(historyRes.status).toBe(200);
+    expect(historyRes.body.success).toBe(true);
+    expect(historyRes.body.data.total).toBe(1);
+    expect(historyRes.body.data.payments).toHaveLength(1);
+    expect(historyRes.body.data.payments[0]).toEqual(settledPayment);
+    expect(historyRes.body.data.payments[0].status).toBe("settled");
   });
 
-  it("returns a defensive copy of the payments array", async () => {
-    await settlePayment();
+  it("returns a defensive copy so mutating result does not corrupt internal state", async () => {
+    const quote = paymentsService.createQuote({
+      sourceAsset: "USDC",
+      destinationAsset: "XLM",
+      sourceAmount: "50",
+    });
+    paymentsService.executePayment({
+      quoteId: quote.quote.id,
+      confirmed: true,
+    });
 
-    const snapshot = paymentsService.listPayments();
-    snapshot.payments.length = 0;
+    const first = paymentsService.listPayments();
+    expect(first.total).toBe(1);
 
-    const freshSnapshot = paymentsService.listPayments();
-    expect(freshSnapshot.total).toBe(1);
-    expect(freshSnapshot.payments).toHaveLength(1);
+    first.payments.pop();
+
+    const second = paymentsService.listPayments();
+    expect(second.total).toBe(1);
+    expect(second.payments).toHaveLength(1);
   });
 });
