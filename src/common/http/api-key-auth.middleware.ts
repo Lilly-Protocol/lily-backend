@@ -1,5 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
-import { timingSafeEqual } from "crypto";
 
 import { securityConfig } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -23,11 +23,13 @@ export function apiKeyAuth(request: Request, _response: Response, next: NextFunc
     return next(new AppError(401, "API key is required"));
   }
 
-  const expected = securityConfig.authApiKey;
-  const providedBuf = Buffer.from(providedKey, "utf8");
-  const expectedBuf = Buffer.from(expected, "utf8");
+  const providedBuffer = Buffer.from(providedKey);
+  const expectedBuffer = Buffer.from(securityConfig.authApiKey);
 
-  if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
+  if (
+    providedBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(providedBuffer, expectedBuffer)
+  ) {
     return next(new AppError(403, "Invalid API key"));
   }
 
