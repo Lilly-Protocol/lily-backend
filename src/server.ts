@@ -1,35 +1,32 @@
 import { createServer } from "node:http";
 
 import { createApp } from "./app";
+import { registerProcessLifecycle } from "./common/lifecycle/shutdown";
+import { buildInfo } from "./config/build-info";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
 
 const app = createApp();
 const server = createServer(app);
 
+server.on("error", (error: NodeJS.ErrnoException) => {
+  logger.fatal({ err: error, port: env.PORT }, "Failed to start HTTP server");
+  process.exit(1);
+});
+
 server.listen(env.PORT, () => {
   logger.info(
     {
-      port: env.PORT,
+      appName: env.APP_NAME,
       environment: env.NODE_ENV,
+      ...buildInfo,
     },
-    "Lily backend server started",
+    "Lily backend server started with resolved configuration",
   );
 });
 
-const shutdown = (signal: NodeJS.Signals) => {
-  logger.info({ signal }, "Graceful shutdown started");
-
-  server.close((error) => {
-    if (error) {
-      logger.error({ err: error }, "Error while shutting down server");
-      process.exit(1);
-    }
-
-    logger.info("HTTP server closed");
-    process.exit(0);
-  });
-};
-
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+registerProcessLifecycle({
+  server,
+  logger,
+  processLike: process,
+});
