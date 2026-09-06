@@ -17,7 +17,7 @@ import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { shouldIgnoreRequestLog } from "./config/request-logging";
-import { metricsMiddleware } from "./modules/metrics/metrics.middleware";
+import { serializeResponse } from "./common/http/request-logger";
 import { apiRouter } from "./routes";
 
 const sensitiveQueryKeys = [
@@ -70,7 +70,6 @@ export const createApp = (): express.Express => {
   app.use(express.json({ limit: securityConfig.bodySizeLimit }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cacheControlNoStore);
-  app.use(metricsMiddleware);
   app.use(
     pinoHttp({
       logger,
@@ -88,6 +87,7 @@ export const createApp = (): express.Express => {
       },
       serializers: {
         req: serializeRequestLog as never,
+        res: serializeResponse as never,
       },
     }),
   );
