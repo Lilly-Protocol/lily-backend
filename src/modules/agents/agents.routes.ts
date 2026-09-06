@@ -14,8 +14,6 @@ import { agentStatusSchema, createAgentSchema } from "./agents.schema";
 
 export const agentsRouter = Router();
 
-// Reads stay public; only state-changing routes require an API key
-// (see issue #263). The middleware is a no-op while AUTH_API_KEY is unset.
 agentsRouter.get("/", listAgents);
 agentsRouter.get("/:id", getAgentById);
 agentsRouter.post(
