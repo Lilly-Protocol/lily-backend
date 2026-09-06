@@ -19,19 +19,12 @@ describe("metrics endpoints", () => {
         heapUsedBytes: expect.any(Number),
         externalBytes: expect.any(Number),
       },
+      eventLoopLagMs: expect.any(Number),
       nodeVersion: expect.stringMatching(/^v\d+/),
       environment: expect.any(String),
       timestamp: expect.any(String),
     });
-  });
-
-  it("includes eventLoopLagMs as a finite non-negative number", async () => {
-    const response = await request(app).get("/api/v1/metrics");
-
-    expect(response.status).toBe(200);
-    expect(response.body.data.eventLoopLagMs).toBeDefined();
-    expect(typeof response.body.data.eventLoopLagMs).toBe("number");
-    expect(Number.isFinite(response.body.data.eventLoopLagMs)).toBe(true);
     expect(response.body.data.eventLoopLagMs).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(response.body.data.eventLoopLagMs)).toBe(true);
   });
 });
