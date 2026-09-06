@@ -7,17 +7,11 @@ import { AppError } from "./app-error";
 
 let warnedAboutMissingKey = false;
 
-export function apiKeyAuth(
-  request: Request,
-  _response: Response,
-  next: NextFunction,
-): void {
+export function apiKeyAuth(request: Request, _response: Response, next: NextFunction): void {
   if (!securityConfig.authApiKey) {
     if (!warnedAboutMissingKey) {
       warnedAboutMissingKey = true;
-      logger.warn(
-        "AUTH_API_KEY is not set — API key authentication is disabled",
-      );
+      logger.warn("AUTH_API_KEY is not set — API key authentication is disabled");
     }
     return next();
   }
