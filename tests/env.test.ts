@@ -17,6 +17,7 @@ describe("env schema", () => {
     expect(env.PORT).toBe(4000);
     expect(env.APP_NAME).toBe("Lily Backend");
     expect(env.API_PREFIX).toBe("/api/v1");
+    expect(env.AUTH_API_KEY_HEADER).toBe("x-api-key");
   });
 
   it("coerces PORT string to number within valid range", async () => {
@@ -43,12 +44,13 @@ describe("env schema", () => {
     );
   });
 
-  it("transforms TRUST_PROXY string 'true' to boolean true", async () => {
+  it("transforms TRUST_PROXY numeric hop count string to a number", async () => {
     vi.stubEnv("NODE_ENV", "test");
-    vi.stubEnv("TRUST_PROXY", "true");
+    vi.stubEnv("TRUST_PROXY", "1");
     const { env } = await import("../src/config/env");
 
-    expect(env.TRUST_PROXY).toBe(true);
+    expect(env.TRUST_PROXY).toBe(1);
+    expect(typeof env.TRUST_PROXY).toBe("number");
   });
 
   it("transforms TRUST_PROXY string 'false' to boolean false", async () => {
@@ -59,6 +61,14 @@ describe("env schema", () => {
     expect(env.TRUST_PROXY).toBe(false);
   });
 
+  it("rejects unsafe TRUST_PROXY value 'true'", async () => {
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("TRUST_PROXY", "true");
+    await expect(() => import("../src/config/env")).rejects.toThrow(
+      /Invalid environment configuration/,
+    );
+  });
+
   it("validates RATE_LIMIT_MAX_REQUESTS as positive integer", async () => {
     vi.stubEnv("NODE_ENV", "test");
     vi.stubEnv("RATE_LIMIT_MAX_REQUESTS", "0");
@@ -66,4 +76,37 @@ describe("env schema", () => {
       /Invalid environment configuration/,
     );
   });
+
+  it("accepts the default and ordinary API key header names", async () => {
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("AUTH_API_KEY_HEADER", "x-auth-key");
+
+    const { env } = await import("../src/config/env");
+
+    expect(env.AUTH_API_KEY_HEADER).toBe("x-auth-key");
+  });
+
+  it.each(["my header", " x-api-key", "x-api-key ", "x-api:key", ""])(
+    "rejects malformed API key header name %j before startup",
+    async (header) => {
+      vi.stubEnv("NODE_ENV", "test");
+      vi.stubEnv("AUTH_API_KEY_HEADER", header);
+
+      await expect(() => import("../src/config/env")).rejects.toThrow(
+        /Invalid environment configuration/,
+      );
+    },
+  );
+
+  it.each(["authorization", "Cookie", "idempotency-key", "X-Request-Id"])(
+    "rejects reserved API key header name %j before startup",
+    async (header) => {
+      vi.stubEnv("NODE_ENV", "test");
+      vi.stubEnv("AUTH_API_KEY_HEADER", header);
+
+      await expect(() => import("../src/config/env")).rejects.toThrow(
+        /Invalid environment configuration/,
+      );
+    },
+  );
 });

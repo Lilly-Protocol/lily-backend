@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app";
 import { env } from "../src/config/env";
+import { version } from "../package.json";
 
 describe("health endpoints", () => {
   const app = createApp();
@@ -18,6 +19,7 @@ describe("health endpoints", () => {
       status: expect.any(String),
       service: env.APP_NAME,
       environment: env.NODE_ENV,
+      version: expect.any(String),
       timestamp: expect.any(String),
     });
 
@@ -30,7 +32,6 @@ describe("health endpoints", () => {
     expect(timestampMs).toBeLessThanOrEqual(afterRequest);
   });
 
-
   it("returns a typed 404 payload for missing routes", async () => {
     const response = await request(app).get("/missing");
 
@@ -40,7 +41,7 @@ describe("health endpoints", () => {
     expect(response.body.message).toContain("Route not found");
   });
 
-  it("asserts all health payload fields per contract (issue #134)", async () => {
+  it("asserts all health payload fields per contract (issue #134, #261)", async () => {
     const response = await request(app).get("/api/v1/health");
 
     expect(response.status).toBe(200);
@@ -50,11 +51,13 @@ describe("health endpoints", () => {
     expect(data).toHaveProperty("status");
     expect(data).toHaveProperty("service");
     expect(data).toHaveProperty("environment");
+    expect(data).toHaveProperty("version");
     expect(data).toHaveProperty("timestamp");
 
     expect(typeof data.status).toBe("string");
     expect(typeof data.service).toBe("string");
     expect(typeof data.environment).toBe("string");
+    expect(data.version).toBe(version);
     expect(typeof data.timestamp).toBe("string");
   });
 

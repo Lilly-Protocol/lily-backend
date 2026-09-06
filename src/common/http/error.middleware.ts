@@ -1,31 +1,23 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { AppError } from "@/common/http/app-error";
+import { sanitizeRequestUrl } from "@/common/http/request-logger";
 import { env } from "@/config/env";
 import { logger } from "@/config/logger";
 
-interface BodyParserError extends SyntaxError {
-  status: number;
-  type: string;
-}
-
-const isMalformedJsonError = (error: Error): error is BodyParserError =>
-  error instanceof SyntaxError &&
-  "status" in error &&
-  error.status === 400 &&
-  "type" in error &&
-  error.type === "entity.parse.failed";
-
 type HttpLikeError = Error & {
-  status?: number;
-  statusCode?: number;
+  status?: unknown;
+  statusCode?: unknown;
   type?: string;
 };
 
 const isHttpStatusCode = (value: unknown): value is number =>
-  Number.isInteger(value) && Number(value) >= 400 && Number(value) <= 599;
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= 400 &&
+  value <= 599;
 
-const getStatusCode = (error: Error): number => {
+const getStatusCode = (error: unknown): number => {
   if (error instanceof AppError) {
     return error.statusCode;
   }
@@ -43,7 +35,15 @@ const getStatusCode = (error: Error): number => {
   return 500;
 };
 
-const getMessage = (error: Error, statusCode: number): string => {
+const getMessage = (error: unknown): string => {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (!(error instanceof Error)) {
+    return "An unexpected error occurred";
+  }
+
   const httpError = error as HttpLikeError;
 
   if (httpError.type === "entity.parse.failed") {
@@ -54,29 +54,14 @@ const getMessage = (error: Error, statusCode: number): string => {
     return "Request body too large";
   }
 
-  if (statusCode === 500 && env.NODE_ENV === "production") {
-    return "Internal server error";
+  let message = error.message;
+  if (error instanceof AppError && error.statusCode === 404) {
+    message = message.split("?")[0] ?? message;
+  } else if (message.includes("?")) {
+    message = sanitizeRequestUrl(message);
   }
 
-  return error.message;
-};
-
-type HttpError = Error & {
-  status?: number;
-  statusCode?: number;
-};
-
-const getStatusCode = (error: Error): number => {
-  if (error instanceof AppError) {
-    return error.statusCode;
-  }
-
-  const httpError = error as HttpError;
-  const statusCode = httpError.statusCode ?? httpError.status;
-
-  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 600
-    ? statusCode
-    : 500;
+  return message;
 };
 
 export const errorHandler = (
@@ -87,26 +72,34 @@ export const errorHandler = (
 ): void => {
   void _next;
 
-  const statusCode =
-    error instanceof AppError
-      ? error.statusCode
-      : "status" in error && typeof (error as { status?: unknown }).status === "number"
-        ? (error as { status: number }).status
-        : 500;
-  const details = error instanceof AppError ? error.details : undefined;
+  if (response.locals) {
+    response.locals.errorHandled = true;
+  }
+  (request as unknown as { _errorHandled?: boolean })._errorHandled = true;
+
+  const statusCode = getStatusCode(error);
   const isAppError = error instanceof AppError;
+  const details = isAppError ? error.details : undefined;
 
   const logLevel = statusCode >= 400 && statusCode < 500 ? "warn" : "error";
 
   logger[logLevel](
     {
+      reqId: (request as Request & { id?: unknown }).id,
       err: error,
       method: request.method,
-      path: request.originalUrl,
+      path: sanitizeRequestUrl(request.originalUrl),
       statusCode,
     },
     "Request failed",
   );
+
+  const code =
+    isAppError && error.code
+      ? error.code
+      : statusCode === 500
+        ? "INTERNAL_SERVER_ERROR"
+        : undefined;
 
   response.status(statusCode).json({
     success: false,
@@ -114,7 +107,7 @@ export const errorHandler = (
     message:
       statusCode === 500 && !isAppError && env.NODE_ENV === "production"
         ? "Internal server error"
-        : rawMessage,
+        : getMessage(error),
     ...(details !== undefined ? { details } : {}),
   });
 };

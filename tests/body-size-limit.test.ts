@@ -10,7 +10,7 @@ describe("Body Size Limit", () => {
     app = express();
     // Use a small limit for fast testing
     app.use(express.json({ limit: "1kb" }));
-    app.post("/test", (req, res) => {
+    app.post("/test", (_req, res) => {
       res.json({ success: true });
     });
     app.use(errorHandler);

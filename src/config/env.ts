@@ -3,7 +3,7 @@ import { z } from "zod";
 
 dotenv.config();
 
-const trustProxySchema = z.preprocess(
+export const trustProxySchema = z.preprocess(
   (val) => (val === undefined || val === "" ? "false" : val),
   z.union([
     z.literal("false").transform(() => false as const),
@@ -21,6 +21,35 @@ const trustProxySchema = z.preprocess(
     z.literal("loopback"),
   ]),
 );
+
+// RFC 9110 field names use the `token` character set. Rejecting operational
+// headers as API-key carriers also prevents the auth middleware from
+// reinterpreting headers that Express or another middleware already owns.
+const HTTP_FIELD_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const RESERVED_API_KEY_HEADERS = new Set([
+  "authorization",
+  "connection",
+  "content-length",
+  "content-type",
+  "cookie",
+  "host",
+  "idempotency-key",
+  "proxy-authorization",
+  "set-cookie",
+  "transfer-encoding",
+  "x-request-id",
+]);
+
+export const authApiKeyHeaderSchema = z
+  .string()
+  .min(1)
+  .regex(HTTP_FIELD_NAME_PATTERN, {
+    message: "AUTH_API_KEY_HEADER must be a valid HTTP header field name",
+  })
+  .refine((header) => !RESERVED_API_KEY_HEADERS.has(header.toLowerCase()), {
+    message: "AUTH_API_KEY_HEADER conflicts with a reserved HTTP header",
+  })
+  .default("x-api-key");
 
 const envSchema = z.object({
   NODE_ENV: z
@@ -45,21 +74,9 @@ const envSchema = z.object({
     .positive()
     .default(15 * 60 * 1000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
-  TRUST_PROXY: z
-    .string()
-    .default("false")
-    .refine((val) => {
-      if (val === "true" || val === "false") return true;
-      const num = Number(val);
-      return Number.isInteger(num) && num >= 0;
-    }, {
-      message: `TRUST_PROXY must be "true", "false", or a non-negative integer hop count`,
-    })
-    .transform((value) => {
-      if (value === "false") return false as boolean | number;
-      if (value === "true") return true as boolean | number;
-      return Number(value) as boolean | number;
-    }),
+  AUTH_API_KEY: z.string().optional(),
+  AUTH_API_KEY_HEADER: authApiKeyHeaderSchema,
+  TRUST_PROXY: trustProxySchema,
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
