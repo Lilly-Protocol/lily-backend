@@ -9,6 +9,18 @@ import { paymentsService } from "./payments.service";
 type CreateQuoteBody = z.output<typeof createQuoteSchema>;
 type ExecutePaymentBody = z.output<typeof executePaymentSchema>;
 
+export const listPayments = (
+  _request: Request,
+  response: Response<
+    ApiSuccessResponse<ReturnType<typeof paymentsService.listPayments>>
+  >,
+): void => {
+  response.status(200).json({
+    success: true,
+    data: paymentsService.listPayments(),
+  });
+};
+
 export const createQuote = asyncHandler(
   async (
     request: Request<
@@ -63,3 +75,15 @@ export const executePayment = asyncHandler(
   },
 );
 
+export const listPayments = asyncHandler(
+  async (
+    _request: Request,
+    response: Response<
+      ApiSuccessResponse<ReturnType<typeof paymentsService.listPayments>>
+    >,
+  ) => {
+    const result = paymentsService.listPayments();
+
+    response.status(200).json({ success: true, data: result });
+  },
+);
