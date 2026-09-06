@@ -162,4 +162,65 @@ describe("Idempotency-Key middleware", () => {
     const listRes = await request(app).get("/api/v1/agents").expect(200);
     expect(listRes.body.data.total).toBe(2);
   });
+
+  it("bounds the store capacity and evicts oldest entries first (issue #288)", async () => {
+    const { _setIdempotencyConfig, _getIdempotencyStoreSize } = await import(
+      "../src/common/http/idempotency.middleware"
+    );
+    _setIdempotencyConfig({ maxEntries: 2 });
+
+    const p1 = {
+      name: "Agent One",
+      description: "A valid description for agent one",
+      capabilities: ["testing"],
+    };
+    const p2 = {
+      name: "Agent Two",
+      description: "A valid description for agent two",
+      capabilities: ["testing"],
+    };
+    const p3 = {
+      name: "Agent Three",
+      description: "A valid description for agent three",
+      capabilities: ["testing"],
+    };
+
+    // Insert key-1 and key-2
+    const res1 = await request(app).post("/api/v1/agents").set("Idempotency-Key", "k1").send(p1).expect(201);
+    const res2 = await request(app).post("/api/v1/agents").set("Idempotency-Key", "k2").send(p2).expect(201);
+    expect(_getIdempotencyStoreSize()).toBe(2);
+
+    // Insert key-3 -> capacity reached, evicts oldest (k1)
+    await request(app).post("/api/v1/agents").set("Idempotency-Key", "k3").send(p3).expect(201);
+    expect(_getIdempotencyStoreSize()).toBe(2);
+
+    // Replay k2 -> still cached
+    const replay2 = await request(app).post("/api/v1/agents").set("Idempotency-Key", "k2").send(p2).expect(201);
+    expect(replay2.body.data.agent.id).toBe(res2.body.data.agent.id);
+
+    // Replay k1 -> evicted, creates a NEW agent
+    const replay1 = await request(app).post("/api/v1/agents").set("Idempotency-Key", "k1").send(p1).expect(201);
+    expect(replay1.body.data.agent.id).not.toBe(res1.body.data.agent.id);
+  });
+
+  it("proactively sweeps expired entries even without replays (issue #288)", async () => {
+    const { _setIdempotencyConfig, _getIdempotencyStoreSize, _sweepIdempotencyStore } = await import(
+      "../src/common/http/idempotency.middleware"
+    );
+    _setIdempotencyConfig({ ttlMs: 40 });
+
+    const p = {
+      name: "Sweep Agent",
+      description: "A valid description for sweep agent",
+      capabilities: ["testing"],
+    };
+    await request(app).post("/api/v1/agents").set("Idempotency-Key", "k-sweep").send(p).expect(201);
+    expect(_getIdempotencyStoreSize()).toBe(1);
+
+    await new Promise((r) => setTimeout(r, 60));
+
+    const evictedCount = _sweepIdempotencyStore();
+    expect(evictedCount).toBe(1);
+    expect(_getIdempotencyStoreSize()).toBe(0);
+  });
 });
