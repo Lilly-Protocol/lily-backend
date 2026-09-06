@@ -17,6 +17,7 @@ import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { shouldIgnoreRequestLog } from "./config/request-logging";
+import { serializeResponse } from "./common/http/request-logger";
 import { apiRouter } from "./routes";
 
 const sensitiveQueryKeys = [
@@ -46,17 +47,11 @@ const redactUrl = (url: string): string => {
   }
 };
 
-const serializeRequestLog = (
-  request: IncomingMessage & {
-    id?: unknown;
-    raw?: { ip?: string };
-    ip?: string;
-  },
-) => ({
+const serializeRequestLog = (request: IncomingMessage & { id?: unknown }) => ({
   id: request.id,
   method: request.method,
   url: redactUrl(request.url ?? ""),
-  remoteAddress: request.raw?.ip ?? request.ip ?? request.socket?.remoteAddress,
+  remoteAddress: request.socket?.remoteAddress,
   remotePort: request.socket?.remotePort,
 });
 
@@ -92,6 +87,7 @@ export const createApp = (): express.Express => {
       },
       serializers: {
         req: serializeRequestLog as never,
+        res: serializeResponse as never,
       },
     }),
   );
