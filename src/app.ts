@@ -17,6 +17,7 @@ import { env, securityConfig } from "./config/env";
 import { logger } from "./config/logger";
 import { apiRateLimiter } from "./config/rate-limit";
 import { shouldIgnoreRequestLog } from "./config/request-logging";
+import { serializeResponse } from "./common/http/request-logger";
 import { apiRouter } from "./routes";
 
 const sensitiveQueryKeys = [
@@ -84,15 +85,9 @@ export const createApp = (): express.Express => {
 
         return "info";
       },
-      customProps(request, response) {
-        const locals = (response as any).locals;
-        if (locals && locals.errorDetails) {
-          return { err: locals.errorDetails.err };
-        }
-        return {};
-      },
       serializers: {
         req: serializeRequestLog as never,
+        res: serializeResponse as never,
       },
     }),
   );
