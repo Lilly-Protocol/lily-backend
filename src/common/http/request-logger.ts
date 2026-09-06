@@ -1,9 +1,9 @@
-import type { IncomingMessage } from "node:http";
-import type { SerializedRequest } from "pino-std-serializers";
+import type { ServerResponse } from "node:http";
+import type { SerializedRequest, SerializedResponse } from "pino-std-serializers";
 
-export const REDACTED = "[REDACTED]";
+const REDACTED = "[Redacted]";
 
-export const sensitiveQueryKeys = new Set([
+const sensitiveQueryKeys = new Set([
   "access_token",
   "api_key",
   "apikey",
@@ -17,7 +17,6 @@ export const sensitiveQueryKeys = new Set([
   "private_key",
   "refresh_token",
   "secret",
-  "seed",
   "session",
   "signature",
   "sig",
@@ -25,15 +24,10 @@ export const sensitiveQueryKeys = new Set([
   "wallet_seed",
 ]);
 
-export const normalizeQueryKey = (key: string): string =>
-  key.toLowerCase().replace(/-/g, "_");
+const normalizeQueryKey = (key: string) => key.toLowerCase().replace(/-/g, "_");
 
-export const sanitizeRequestUrl = (requestUrl: string): string => {
-  if (!requestUrl) {
-    return "";
-  }
-
-  const [pathname = "", query = ""] = requestUrl.split("?", 2);
+export const sanitizeRequestUrl = (requestUrl: string) => {
+  const [pathname, query = ""] = requestUrl.split("?", 2);
 
   if (!query) {
     return pathname;
@@ -52,30 +46,17 @@ export const sanitizeRequestUrl = (requestUrl: string): string => {
   return `${pathname}?${sanitizedParams.toString()}`;
 };
 
-export interface LoggableRequest {
-  id?: unknown;
-  method?: string;
-  url?: string;
-  remoteAddress?: string;
-  remotePort?: number;
-  socket?: {
-    remoteAddress?: string;
-    remotePort?: number;
-  };
-}
-
-export const serializeRequest = (
-  request: LoggableRequest | IncomingMessage | SerializedRequest,
-) => ({
+export const serializeRequest = (request: SerializedRequest) => ({
   id: request.id,
   method: request.method,
-  url: sanitizeRequestUrl(request.url ?? ""),
-  remoteAddress:
-    "socket" in request && request.socket?.remoteAddress
-      ? request.socket.remoteAddress
-      : (request as SerializedRequest).remoteAddress,
-  remotePort:
-    "socket" in request && request.socket?.remotePort
-      ? request.socket.remotePort
-      : (request as SerializedRequest).remotePort,
+  url: sanitizeRequestUrl(request.url),
+  remoteAddress: request.remoteAddress,
+  remotePort: request.remotePort,
 });
+
+export const serializeResponse = (
+  response: SerializedResponse | ServerResponse | { statusCode?: number },
+) => ({
+  statusCode: response.statusCode,
+});
+

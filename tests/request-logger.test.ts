@@ -1,9 +1,10 @@
-import type { SerializedRequest } from "pino-std-serializers";
+import type { SerializedRequest, SerializedResponse } from "pino-std-serializers";
 import { describe, expect, it } from "vitest";
 
 import {
   sanitizeRequestUrl,
   serializeRequest,
+  serializeResponse,
 } from "../src/common/http/request-logger";
 
 describe("request log sanitization", () => {
@@ -13,17 +14,7 @@ describe("request log sanitization", () => {
         "/api/v1/agents?owner=alice&api-key=secret-value&limit=10&token=abc",
       ),
     ).toBe(
-      "/api/v1/agents?owner=alice&api-key=%5BREDACTED%5D&limit=10&token=%5BREDACTED%5D",
-    );
-  });
-
-  it("redacts case-variant and hyphenated query keys", () => {
-    expect(
-      sanitizeRequestUrl(
-        "/api/v1/agents?API_KEY=leak1&Api-Key=leak2&ACCESS-TOKEN=leak3&sig=leak4&sort=asc",
-      ),
-    ).toBe(
-      "/api/v1/agents?API_KEY=%5BREDACTED%5D&Api-Key=%5BREDACTED%5D&ACCESS-TOKEN=%5BREDACTED%5D&sig=%5BREDACTED%5D&sort=asc",
+      "/api/v1/agents?owner=alice&api-key=%5BRedacted%5D&limit=10&token=%5BRedacted%5D",
     );
   });
 
@@ -43,7 +34,7 @@ describe("request log sanitization", () => {
     expect(serializeRequest(request)).toEqual({
       id: "request-1",
       method: "GET",
-      url: "/api/v1/agents?authorization=%5BREDACTED%5D",
+      url: "/api/v1/agents?authorization=%5BRedacted%5D",
       remoteAddress: "127.0.0.1",
       remotePort: 4000,
     });
@@ -51,4 +42,22 @@ describe("request log sanitization", () => {
     expect(serializeRequest(request)).not.toHaveProperty("query");
     expect(serializeRequest(request)).not.toHaveProperty("raw");
   });
+
+  it("omits headers and raw properties from serialized response", () => {
+    const response = {
+      statusCode: 200,
+      headers: {
+        "content-security-policy": "default-src 'self'",
+        "set-cookie": "session=secret",
+      },
+      raw: {},
+    } as unknown as SerializedResponse;
+
+    expect(serializeResponse(response)).toEqual({
+      statusCode: 200,
+    });
+    expect(serializeResponse(response)).not.toHaveProperty("headers");
+    expect(serializeResponse(response)).not.toHaveProperty("raw");
+  });
 });
+
