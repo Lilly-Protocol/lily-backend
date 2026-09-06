@@ -22,8 +22,8 @@ const amountString = z
   .string()
   .trim()
   .min(1)
-  .regex(decimalAmountRegex, {
-    message: "Amount must be a positive decimal with at most 7 decimal places",
+  .regex(/^\d+(\.\d+)?$/, {
+    message: "Amount must be a non-negative decimal number",
   })
   .transform((value) => normalizeAmount(value));
 
@@ -65,8 +65,8 @@ export type QuoteInput = z.input<typeof quoteSchema>;
 export type QuoteOutput = z.output<typeof quoteSchema>;
 
 export const createQuoteSchema = z.object({
-  sourceAsset: z.string().trim().min(1),
-  destinationAsset: z.string().trim().min(1),
+  sourceAsset: stellarAssetCodeSchema,
+  destinationAsset: stellarAssetCodeSchema,
   sourceAmount: amountString,
 });
 
