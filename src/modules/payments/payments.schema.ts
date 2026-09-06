@@ -1,3 +1,4 @@
+import { StrKey } from "@stellar/stellar-sdk";
 import { z } from "zod";
 
 /**
