@@ -15,7 +15,9 @@
     "test:coverage": "vitest run --coverage",
     "format": "prettier --write .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm run build && npm run test",
     "prepare": "husky"
   },
   "lint-staged": {
