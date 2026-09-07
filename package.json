@@ -5,9 +5,9 @@
   "private": true,
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "rimraf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
-    "start": "node dist/server.js",
+    "dev": "node init && tsx watch src/server.ts",
+    "build": "node init && rimraf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "start": "node init && node dist/server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
