@@ -1,6 +1,7 @@
 import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 
 import { env } from "../../config/env";
+import { getEventLoopLagStats } from "./event-loop-lag";
 import type { ProcessMetrics } from "./metrics.types";
 
 let histogram: IntervalHistogram | null = null;
@@ -34,6 +35,7 @@ export const metricsService = {
         externalBytes: memory.external,
       },
       eventLoopLagMs: getEventLoopLagMs(),
+      eventLoopLagTelemetry: getEventLoopLagStats(),
       nodeVersion: process.version,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
