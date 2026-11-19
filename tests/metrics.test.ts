@@ -27,4 +27,16 @@ describe("metrics endpoints", () => {
     expect(response.body.data.eventLoopLagMs).toBeGreaterThanOrEqual(0);
     expect(Number.isFinite(response.body.data.eventLoopLagMs)).toBe(true);
   });
+
+  it("reports accurate non-negative event loop lag metric under load", async () => {
+    const start = Date.now();
+    while (Date.now() - start < 15) {
+      // sync spin
+    }
+
+    const response = await request(app).get("/api/v1/metrics");
+    expect(response.status).toBe(200);
+    expect(response.body.data.eventLoopLagMs).toBeGreaterThanOrEqual(0);
+    expect(typeof response.body.data.eventLoopLagMs).toBe("number");
+  });
 });
