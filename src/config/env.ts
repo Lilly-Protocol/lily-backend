@@ -77,6 +77,12 @@ const envSchema = z.object({
   AUTH_API_KEY: z.string().optional(),
   AUTH_API_KEY_HEADER: authApiKeyHeaderSchema,
   TRUST_PROXY: trustProxySchema,
+  EVENT_LOOP_LAG_ALERT_THRESHOLD_MS: z.coerce.number().positive().default(100),
+  EVENT_LOOP_LAG_SAMPLE_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(500),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
